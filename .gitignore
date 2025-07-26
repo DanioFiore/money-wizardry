@@ -1,0 +1,71 @@
+# Laravel
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+.env
+.env.*
+!.env.example
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+composer.lock
+
+# NPM
+package-lock.json
+npm-debug.log
+.npm
+
+# IDEs and editors
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+*.sublime-*
+*.code-workspace
+*.sw?
+.editorconfig
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Build tools
+.eslintcache
+.stylelintcache
+.grunt
+.lock-wscript
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.sqlite3
+
+# Coverage directories
+/coverage
+/coverage-ts
+/.nyc_output
+
+# Misc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+dist
+build
+.cache/
+
+# test
+*.rest
+**/caddy
+frankenphp
+frankenphp-worker.php
