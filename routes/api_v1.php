@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\BotController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\TestsController;
 use App\Http\Controllers\Api\V1\UsersController;
@@ -28,3 +29,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admins', [AdminsController::class, 'index']);
     Route::patch('/admins/{id}', [AdminsController::class, 'update']);
 });
+
+// BOT
+Route::get('/bot', [BotController::class, 'test']);
