@@ -94,7 +94,7 @@ return [
     | Default: https://api.telegram.org/bot
     |
     */
-    'base_bot_url' => null,
+    'base_bot_url' => env('BASE_URL') . "/bot" . env('TELEGRAM_BOT_TOKEN'),
 
     /*
     |--------------------------------------------------------------------------
@@ -127,7 +127,7 @@ return [
     |
     */
     'commands' => [
-        StartCommand::class,
+        // StartCommand::class,
     ],
 
     /*
