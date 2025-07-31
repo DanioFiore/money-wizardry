@@ -31,4 +31,4 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // BOT
-Route::get('/bot', [BotController::class, 'test']);
+Route::get('/bot/getupdates', [BotController::class, 'getUpdates']);
