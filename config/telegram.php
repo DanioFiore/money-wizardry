@@ -1,6 +1,7 @@
 <?php
 
 use Telegram\Bot\Commands\HelpCommand;
+use App\BotCommands\StartCommand;
 
 return [
     /*
@@ -31,10 +32,9 @@ return [
     |             ]
     */
     'bots' => [
-        'money_wizardry' => [
-            'token' => env('TELEGRAM_BOT_TOKEN', 'YOUR-BOT-TOKEN'),
-            'certificate_path' => env('TELEGRAM_CERTIFICATE_PATH', 'YOUR-CERTIFICATE-PATH'),
-            'webhook_url' => env('TELEGRAM_WEBHOOK_URL', 'YOUR-BOT-WEBHOOK-URL'),
+        'money_wizardry_bot' => [
+            'token' => env('TELEGRAM_BOT_TOKEN'),
+            'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
             /*
              * @see https://core.telegram.org/bots/api#update
              */
@@ -43,10 +43,7 @@ return [
                 // Acme\Project\Commands\MyTelegramBot\BotCommand::class
             ],
         ],
-
-        //        'mySecondBot' => [
-        //            'token' => '123456:abc',
-        //        ],
+        'default' => 'money_wizardry_bot',
     ],
 
     /*
@@ -58,7 +55,7 @@ return [
     | your default bot for regular use.
     |
     */
-    'default' => 'money_wizardry',
+    'default' => 'money_wizardry_bot',
 
     /*
     |--------------------------------------------------------------------------
@@ -130,7 +127,7 @@ return [
     |
     */
     'commands' => [
-        HelpCommand::class,
+        StartCommand::class,
     ],
 
     /*
