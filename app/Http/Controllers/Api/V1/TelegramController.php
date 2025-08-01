@@ -18,17 +18,13 @@ class TelegramController extends Controller
                 'request' => $request->all(),
             ]);
 
-            if ($request->input('entities.type', '') === 'bot_command') {
-                Log::info('Telegram command detected');
+            $command = CommandsController::extractCommandFromText($request->input('message.text', ''));
 
-                // Extract the command from the message text
-                $command = CommandsController::extractCommandFromText($request->input('message.text', ''));
+            if (!empty($command)) {
+                Log::info('Telegram command detected');
                 
                 // Handle the command
-                if (!empty($command)) {
-                    return CommandsController::handleCommands($command);
-                }
-
+                return CommandsController::handleCommands($request, $command);
             } else {
                 // check the message text to answer
                 Log::info('No command found in the message', [
