@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Http;
 class TelegramBot 
 {
     protected $token;
-    protected $api_endpoint;
+    protected $apiEndpoint;
+    protected $baseUrl;
     protected $headers;
     
     /**
@@ -22,7 +23,8 @@ class TelegramBot
     public function __construct()
     {
         $this->token = env('TELEGRAM_BOT_TOKEN');
-        $this->api_endpoint = env('TELEGRAM_API_ENDPOINT');
+        $this->apiEndpoint = env('TELEGRAM_API_ENDPOINT');
+        $this->baseUrl = "{$this->apiEndpoint}/bot{$this->token}";
         $this->setHeaders();
     }
     
@@ -48,13 +50,14 @@ class TelegramBot
      * @param  string $replyToMessageId
      * @return array
      */
-    public function sendMessage(string $text = '', string $chatId, string $replyToMessageId): array
+    public function sendMessage(string $text = '', string $chatId, ?string $replyToMessageId): array
     {
         Log::info('TelegramBot->sendMessage', [
             'text' => $text,
             'chatId' => $chatId,
             'replyToMessageId' => $replyToMessageId,
         ]);
+
         // Default result array
         $result = ['success' => false, 'body' => []];
 
@@ -65,8 +68,7 @@ class TelegramBot
             'text' => $text,
         ];
 
-        // Create url -> https://api.telegram.org/bot{token}/sendMessage
-        $url = "{$this->api_endpoint}/bot{$this->token}/sendMessage";
+        $url = "{$this->baseUrl}/sendMessage";
 
         // Send the request
         try {
