@@ -49,17 +49,13 @@ docker-compose up -d --build
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Containers started successfully!${NC}"
     echo -e "${YELLOW}Available URLs:${NC}"
-
     echo "Laravel: http://localhost:${APP_PORT}"
-
     echo "PhpMyAdmin: http://localhost:${PHPMYADMIN_PORT}"
-
     echo "Vite: run 'npm run dev' in the container to start Vite server"
-
+    echo "Docs available at: http://localhost:${APP_PORT}/docs/api"
     echo -e "${GREEN}Setting permissions...${NC}"
     set_secure_permissions
     echo -e "${GREEN}Permissions set successfully!${NC}"
-
     echo -e "${GREEN}Waiting to setup everything...${NC}"
 
     # extra wait time for the containers to be fully up
