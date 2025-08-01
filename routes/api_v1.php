@@ -1,7 +1,8 @@
 <?php
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\BotController;
+use App\Http\Controllers\Api\V1\TelegramController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\TestsController;
 use App\Http\Controllers\Api\V1\UsersController;
@@ -30,5 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/admins/{id}', [AdminsController::class, 'update']);
 });
 
-// BOT
-Route::get('/bot/getupdates', [BotController::class, 'getUpdates']);
+Route::prefix('telegram/webhooks')->group(function () {
+    // WEBHOOKS
+    Route::post('/inbound', [TelegramController::class, 'inbound']);
+});
