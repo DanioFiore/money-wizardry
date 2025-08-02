@@ -50,12 +50,12 @@ class CommandsController extends Controller
         if (TelegramUser::where('telegram_id', $request->input('message.from.id'))->exists()) {
             Log::info('User exists, sending welcome back message');
 
-            $textToSend = 'Welcome back! You are already registered. Use /help to see available commands or just write a price to register a new transaction.';
+            $textToSend = 'Welcome back, Wizard 🧙🏼‍♂️. You are already part of the council. Use 🪄 /help to materialize all available summons.';
         } else {
             Log::info('User does not exist, sending registration message');
 
             // if the user does not exist, ask him to register
-            $textToSend = 'Welcome Money Wizardry! Please register with /register command.';
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please use 🪄 /register to join us.';
         }
 
         app('telegramBot')->sendMessage(
@@ -74,12 +74,9 @@ class CommandsController extends Controller
         if (TelegramUser::where('telegram_id', $request->input('message.from.id'))->exists()) {
             Log::info('User already registered, sending message');
 
-            $textToSend = 'You are already registered.';
+            $textToSend = 'You are already part of the council, Wizard 🧙🏼‍♂️.';
         } else {
             Log::info('Registering new user');
-
-            $telegramId = $request->input('message.from.id');
-            $username = $request->input('message.from.username', 'Unknown User');
             
             TelegramUser::updateOrCreate(
                 [
@@ -92,7 +89,7 @@ class CommandsController extends Controller
                 ]
             );
 
-            $textToSend = 'Welcome, wizard 🧙🏼‍♂️.';
+            $textToSend = 'You are now part of the council, Wizard 🧙🏼‍♂️.';
         }
 
 
@@ -107,10 +104,10 @@ class CommandsController extends Controller
     {
         Log::info('Help command requested');
 
-        $textToSend = "Available commands:\n";
-        $textToSend .= "/start - Start the bot\n";
+        $textToSend = "Available summons in the council of Wizardry:\n";
+        $textToSend .= "/start - Start your journey\n";
         $textToSend .= "/help - Show this help message\n";
-        $textToSend .= "/register - Register a new user\n";
+        $textToSend .= "/register - Register a new wizard, be part of the council\n";
 
         app('telegramBot')->sendMessage(
             $textToSend,
