@@ -12,5 +12,9 @@ class TelegramUser extends Model
         'first_name',
         'last_name',
         'user_id',
+        'hourly_salary',
+        'monthly_salary',
+        'yearly_salary',
+        'hourly_comparison',
     ];
 }
