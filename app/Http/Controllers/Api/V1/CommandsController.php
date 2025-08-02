@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\TelegramUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Telegram\Bot\Laravel\Facades\Telegram;
 
 class CommandsController extends Controller
 {
@@ -23,6 +24,14 @@ class CommandsController extends Controller
                 Log::info('Telegram handle register');
 
                 return self::handleRegisterCommand($request);
+            case '/hc':
+                Log::info('Telegram handle hourly comparison');
+
+                return self::handleHourlyComparisonCommand($request);
+            case '/hmset':
+                Log::info('Telegram handle hourly mana set');
+
+                return self::handleHourlyManaSetCommand($request);
             default:
                 return response()->json([
                     'message' => "Unknown command: {$command}"
@@ -40,7 +49,7 @@ class CommandsController extends Controller
         return '';
     } 
 
-    protected static function handleStartCommand(Request $request)
+    protected static function handleStartCommand(Request $request): void
     {
         Log::info('Handling /start command');
 
@@ -65,7 +74,7 @@ class CommandsController extends Controller
         );
     }
 
-    protected static function handleRegisterCommand(Request $request)
+    protected static function handleRegisterCommand(Request $request): void
     {
         Log::info('Handling /register command');
 
@@ -89,18 +98,18 @@ class CommandsController extends Controller
                 ]
             );
 
-            $textToSend = 'You are now part of the council, Wizard 🧙🏼‍♂️.';
+            $textToSend = 'You are now part of the council, Wizard 🧙🏼‍♂️. Use /start to begin your journey and learn the rules of the council.';
         }
 
 
         app('telegramBot')->sendMessage(
             $textToSend,
             $request->input('message.chat.id'),
-            null // actual message ID if needed to reply to
+            null
         );
     }
 
-    protected static function handleHelpCommand(Request $request)
+    protected static function handleHelpCommand(Request $request): void
     {
         Log::info('Help command requested');
 
@@ -108,11 +117,84 @@ class CommandsController extends Controller
         $textToSend .= "/start - Start your journey\n";
         $textToSend .= "/help - Show this help message\n";
         $textToSend .= "/register - Register a new wizard, be part of the council\n";
+        $textToSend .= "/hc - Enable or disable hourly comparison of your mana gain\n";
+        $textToSend .= "/hmset - Set your hourly mana gain\n";
 
         app('telegramBot')->sendMessage(
             $textToSend,
             $request->input('message.chat.id'),
-            null // actual message ID if needed to reply to
+            null
+        );
+    }
+
+    protected static function handleHourlyComparisonCommand(Request $request): void
+    {
+        Log::info('Handling hourly comparison command');
+
+        $user = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
+
+        if (!$user) {
+            Log::info('User not found, sending registration message');
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please use 🪄 /register to join us.';
+        } else {
+            Log::info('User found, checking hourly comparison');
+
+            if (!$user->hourly_mana) {
+                Log::info('User has not set hourly mana gain, sending message');
+                $textToSend = "You have not set your hourly mana gain yet. You can use /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+            } else {
+                $textToSend = "Your magic was successfully casted! Your hourly comparison is ";
+                $user->hourly_comparison = !$user->hourly_comparison;
+                $user->save();
+                $textToSend .= $user->hourly_comparison ? 'enabled' : 'disabled';
+    
+                if ($user->hourly_comparison) {
+                    $textToSend .= ". Your current hourly mana gain is {$user->hourly_mana}.";
+                    $textToSend .= " You can use /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+                }
+
+            }
+        }
+
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+
+    protected static function handleHourlyManaSetCommand(Request $request): void
+    {
+        Log::info('Handling hourly mana set command');
+
+        $user = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
+
+        if (!$user) {
+            Log::info('User not found, sending registration message');
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please use 🪄 /register to join us.';
+        } else {
+            Log::info('User found, setting hourly salary');
+
+            // Assuming the command is followed by the mana amount
+            $mana = str_replace('/hmset ', '', $request->input('message.text', ''));
+            $mana = trim($mana);
+            $mana = str_replace(',', '.', $mana); // Replace comma with dot for decimal values
+            $mana = floatval($mana);
+
+            if ($mana <= 0 || !is_numeric($mana) || empty($mana)) {
+                $textToSend = "Please provide a valid hourly mana gain to the council. You can use /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+            } else {
+                $user->hourly_mana = $mana;
+                $user->save();
+                $textToSend = "Your hourly mana gain has been set to {$mana}.";
+            }
+        }
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
         );
     }
 }
