@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class TelegramUser extends Model
 {
+    protected $table = 'telegram__users';
     protected $fillable = [
         'telegram_id',
         'username',

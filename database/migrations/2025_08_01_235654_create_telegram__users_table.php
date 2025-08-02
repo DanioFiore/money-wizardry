@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('telegram_users', function (Blueprint $table) {
+        Schema::create('telegram__users', function (Blueprint $table) {
             $table->id();
             $table->string('telegram_id')->unique();
             $table->string('username')->nullable();
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('telegram_users');
+        Schema::dropIfExists('telegram__users');
     }
 };
