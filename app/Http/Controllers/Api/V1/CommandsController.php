@@ -5,17 +5,17 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\TelegramUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Telegram\Bot\Laravel\Facades\Telegram;
+use App\Models\TelegramAvailableCommand;
 
 class CommandsController extends Controller
 {
-    public static function handleCommands(Request $request, string $command)
+    public static function handleCommand(Request $request, string $command)
     { 
         switch ($command) {
-            case '/start':
-                Log::info('Telegram handle start');
+            case '/rules':
+                Log::info('Telegram handle rules');
 
-                return self::handleStartCommand($request);
+                return self::handleRulesCommand($request);
             case '/help':
                 Log::info('Telegram handle help');
 
@@ -49,7 +49,7 @@ class CommandsController extends Controller
         return '';
     } 
 
-    protected static function handleStartCommand(Request $request): void
+    protected static function handleRulesCommand(Request $request): void
     {
         Log::info('Handling /start command');
 
@@ -59,12 +59,12 @@ class CommandsController extends Controller
         if (TelegramUser::where('telegram_id', $request->input('message.from.id'))->exists()) {
             Log::info('User exists, sending welcome back message');
 
-            $textToSend = 'Welcome back, Wizard 🧙🏼‍♂️. You are already part of the council. Use 🪄 /help to materialize all available summons.';
+            $textToSend = 'Welcome back, Wizard 🧙🏼‍♂️. You are already part of the council. Cast 🪄 /help to materialize all available summons.';
         } else {
             Log::info('User does not exist, sending registration message');
 
             // if the user does not exist, ask him to register
-            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please use 🪄 /register to join us.';
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us.';
         }
 
         app('telegramBot')->sendMessage(
@@ -98,7 +98,7 @@ class CommandsController extends Controller
                 ]
             );
 
-            $textToSend = 'You are now part of the council, Wizard 🧙🏼‍♂️. Use /start to begin your journey and learn the rules of the council.';
+            $textToSend = 'You are now part of the council, Wizard 🧙🏼‍♂️. Use /start to begin your journey and learn the rules of the council 🏯.';
         }
 
 
@@ -113,12 +113,62 @@ class CommandsController extends Controller
     {
         Log::info('Help command requested');
 
-        $textToSend = "Available summons in the council of Wizardry:\n";
-        $textToSend .= "/start - Start your journey\n";
-        $textToSend .= "/help - Show this help message\n";
-        $textToSend .= "/register - Register a new wizard, be part of the council\n";
-        $textToSend .= "/hc - Enable or disable hourly comparison of your mana gain\n";
-        $textToSend .= "/hmset - Set your hourly mana gain\n";
+        $textToSend = "🪄 Available summons in the council of Wizardry 🪄\n\n";
+        
+        $commandsList = TelegramAvailableCommand::where('is_active', true)->get();
+
+        $baseCommands = "";
+        $manaCommands = "";
+        $infoCommands = "";
+        $reportsCommands = "";
+
+        if ($commandsList->isEmpty()) {
+            Log::info('No active commands found, sending default message');
+            $textToSend = "No available summons at the moment. Please check back later.";
+        } else {
+            Log::info('Active commands found, preparing response text');
+
+            foreach ($commandsList as $command) {
+
+                switch ($command->type) {
+                    case 'base':
+                        if (empty($baseCommands)) {
+                            $baseCommands .= "Base Commands 🏯:\n";
+                        }
+
+                        $baseCommands .= "{$command->command} - {$command->description}\n";
+                        break;
+                    case 'mana':
+                        if (empty($manaCommands)) {
+                            $manaCommands .= "Mana Commands ✨:\n";
+                        }
+
+                        $manaCommands .= "{$command->command} - {$command->description}\n";
+                        break;
+                    case 'info':
+                        if (empty($infoCommands)) {
+                            $infoCommands .= "Info Commands 📜:\n";
+                        }
+
+                        $infoCommands .= "{$command->command} - {$command->description}\n";
+                        break;
+                    case 'reports':
+                        if (empty($reportsCommands)) {
+                            $reportsCommands .= "Reports Commands 📊:\n";
+                        }
+
+                        $reportsCommands .= "{$command->command} - {$command->description}\n";
+                        break;
+                }
+
+            }
+
+        }
+
+        $textToSend .= $baseCommands . "\n";
+        $textToSend .= $manaCommands . "\n";
+        $textToSend .= $infoCommands . "\n";
+        $textToSend .= $reportsCommands . "\n";
 
         app('telegramBot')->sendMessage(
             $textToSend,
@@ -135,22 +185,22 @@ class CommandsController extends Controller
 
         if (!$user) {
             Log::info('User not found, sending registration message');
-            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please use 🪄 /register to join us.';
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us.';
         } else {
             Log::info('User found, checking hourly comparison');
 
             if (!$user->hourly_mana) {
                 Log::info('User has not set hourly mana gain, sending message');
-                $textToSend = "You have not set your hourly mana gain yet. You can use /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+                $textToSend = "You have not set your hourly mana gain yet. You can cast 🪄 /hmset followed by the amount of your hourly mana gain ✨ to update it. (Example: /hmset 7.5)";
             } else {
                 $textToSend = "Your magic was successfully casted! Your hourly comparison is ";
                 $user->hourly_comparison = !$user->hourly_comparison;
                 $user->save();
-                $textToSend .= $user->hourly_comparison ? 'enabled' : 'disabled';
+                $textToSend .= $user->hourly_comparison ? 'enabled ✅' : 'disabled ❌';
     
                 if ($user->hourly_comparison) {
-                    $textToSend .= ". Your current hourly mana gain is {$user->hourly_mana}.";
-                    $textToSend .= " You can use /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+                    $textToSend .= ". Your current hourly mana gain ✨ is {$user->hourly_mana}.";
+                    $textToSend .= " You can cast 🪄 /hmset followed by the amount of your hourly mana gain ✨ to update it. (Example: /hmset 7.5)";
                 }
 
             }
@@ -172,7 +222,7 @@ class CommandsController extends Controller
 
         if (!$user) {
             Log::info('User not found, sending registration message');
-            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please use 🪄 /register to join us.';
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us.';
         } else {
             Log::info('User found, setting hourly salary');
 
@@ -183,11 +233,11 @@ class CommandsController extends Controller
             $mana = floatval($mana);
 
             if ($mana <= 0 || !is_numeric($mana) || empty($mana)) {
-                $textToSend = "Please provide a valid hourly mana gain to the council. You can use /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+                $textToSend = "Please provide a valid hourly mana gain ✨ to the council. You can cast 🪄 /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
             } else {
                 $user->hourly_mana = $mana;
                 $user->save();
-                $textToSend = "Your hourly mana gain has been set to {$mana}.";
+                $textToSend = "Your hourly mana gain ✨ has been set to {$mana}.";
             }
         }
 

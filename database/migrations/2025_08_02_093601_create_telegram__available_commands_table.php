@@ -22,7 +22,7 @@ return new class extends Migration
         });
 
         DB::table('telegram__available_commands')->insert([
-            ['command' => '/start', 'description' => 'Start your journey and learn the rules of the council 🏯', 'type' => 'base'],
+            ['command' => '/rules', 'description' => 'Learn the rules of the council 🏯', 'type' => 'base'],
             ['command' => '/help', 'description' => 'Materialize all available summons 🪄', 'type' => 'base'],
             ['command' => '/register', 'description' => 'Register a new wizard, be part of the council 🏯', 'type' => 'base'],
             ['command' => '/avadakedavra', 'description' => 'You have used a cursed spell 🪄 you are OUT of the council.', 'type' => 'base'],

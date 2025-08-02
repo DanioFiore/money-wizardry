@@ -24,7 +24,7 @@ class TelegramController extends Controller
                 Log::info('Telegram command detected');
                 
                 // Handle the command
-                return CommandsController::handleCommands($request, $command);
+                return CommandsController::handleCommand($request, $command);
             } else {
                 // check the message text to answer
                 Log::info('No command found in the message', [
