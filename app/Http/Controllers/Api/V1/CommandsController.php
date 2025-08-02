@@ -18,7 +18,7 @@ class CommandsController extends Controller
             case '/help':
                 Log::info('Telegram handle help');
 
-                return self::handleHelpCommand();
+                return self::handleHelpCommand($request);
             case '/register':
                 Log::info('Telegram handle register');
 
@@ -103,11 +103,19 @@ class CommandsController extends Controller
         );
     }
 
-    protected static function handleHelpCommand()
+    protected static function handleHelpCommand(Request $request)
     {
-        // Logic for handling the /help command
-        return response()->json([
-            'message' => 'Available commands: /start, /help'
-        ]);
+        Log::info('Help command requested');
+
+        $textToSend = "Available commands:\n";
+        $textToSend .= "/start - Start the bot\n";
+        $textToSend .= "/help - Show this help message\n";
+        $textToSend .= "/register - Register a new user\n";
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null // actual message ID if needed to reply to
+        );
     }
 }
