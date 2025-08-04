@@ -38,6 +38,10 @@ return new class extends Migration
             ['command' => '/hcmm', 'description' => 'Materialize your monthly mana gain with comparison ↔️', 'type' => 'info'],
             ['command' => '/hcym', 'description' => 'Materialize your yearly mana gain with comparison ↔️', 'type' => 'info'],
             ['command' => '/wizard', 'description' => 'Retrieve your info registered in the council 🏯', 'type' => 'info'],
+            ['command' => '/rdm', 'description' => 'Materialize your mana ✨ used today', 'type' => 'reports'],
+            ['command' => '/rwm', 'description' => 'Materialize your mana ✨ used this week', 'type' => 'reports'],
+            ['command' => '/rmm', 'description' => 'Materialize your mana ✨ used this month', 'type' => 'reports'],
+            ['command' => '/rym', 'description' => 'Materialize your mana ✨ used this year', 'type' => 'reports'],
         ]);
     }
 
