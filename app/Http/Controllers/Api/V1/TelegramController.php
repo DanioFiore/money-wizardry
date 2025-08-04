@@ -51,7 +51,6 @@ class TelegramController extends Controller
             ]);
 
             $amount = trim($request->input('message.text'));
-            $amount = str_replace(['$', '€', '£'], '', $amount); // Remove currency symbols
             $amount = str_replace(',', '.', $amount); // Replace comma with dot for decimal point
             $amount = preg_replace('/[^\d.]/', '', $amount); // Remove any non-numeric characters except for the decimal point
             $amount = floatval($amount);
@@ -61,7 +60,7 @@ class TelegramController extends Controller
                     'amount' => $amount,
                 ]);
 
-                $textToSend = 'Your magic is not working. I think you missed out on something. Maybe a transaction amount? Please try again with a valid amount.';
+                $textToSend = 'You cast the wrong spell ❌. I think you missed out on something. Maybe a transaction amount? 🧐 Please try again with a valid amount.';
             } else {
                 Log::info('Valid transaction amount received', [
                     'amount' => $amount,
@@ -75,26 +74,26 @@ class TelegramController extends Controller
                 if ($telegramUser->hourly_comparison) {
 
                     if ($telegramUser->hourly_mana) {
-                        // Calcolo ore necessarie
+                        // calculate necessary hours and minutes
                         $hoursNeeded = $amount / $telegramUser->hourly_mana;
-                        
-                        // Conversione in ore e minuti
                         $hours = floor($hoursNeeded);
                         $minutes = round(($hoursNeeded - $hours) * 60);
                         
-                        // Se i minuti sono 60, aggiungi un'ora
+                        // if minutes are 60 or more, convert to hours
                         if ($minutes >= 60) {
                             $hours++;
                             $minutes = 0;
                         }
 
-                        $textToSend = "You have casted a transaction amount of $amount. You have used $hours hour(s) and $minutes minute(s) of your time to cast this spell.\n";
+                        $hourTranslation = $hours === 1 ? 'hour' : 'hours';
+                        $minuteTranslation = $minutes === 1 ? 'minute' : 'minutes';
+                        $textToSend = "You have casted 🪄 a transaction amount of $amount. You have used $hours $hourTranslation and $minutes $minuteTranslation of your time to cast this spell ⏳.\n";
                     } else {
-                        $textToSend = "You have casted a transaction amount of $amount. The council of the Wizardry will take care of it. 🏦";
+                        $textToSend = "You have casted 🪄 a transaction amount of $amount. The council of the Wizardry will take care of it. 🏦";
                     }
 
                 } else {
-                    $textToSend = "You have casted a transaction amount of $amount. The council of the Wizardry will take care of it. 🏦";
+                    $textToSend = "You have casted 🪄 a transaction amount of $amount. The council of the Wizardry will take care of it. 🏦";
                 }
             }
 
