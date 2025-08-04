@@ -51,8 +51,8 @@ class TelegramController extends Controller
             ]);
 
             $amount = trim($request->input('message.text'));
-            $amount = str_replace(',', '.', $amount); // Replace comma with dot for decimal point
-            $amount = preg_replace('/[^\d.]/', '', $amount); // Remove any non-numeric characters except for the decimal point
+            $amount = str_replace(',', '.', $amount); // replace comma with dot for decimal point
+            $amount = preg_replace('/[^\d.]/', '', $amount); // remove any non-numeric characters except for the decimal point
             $amount = floatval($amount);
 
             if ($amount <= 0) {

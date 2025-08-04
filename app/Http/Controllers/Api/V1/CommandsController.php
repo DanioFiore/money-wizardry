@@ -21,7 +21,9 @@ class CommandsController extends Controller
             case '/hc':
                 return self::handleHourlyComparisonCommand($request);
             case '/hmset':
-                return self::handleHourlyManaSetCommand($request);
+            case '/mmset':
+            case '/ymset':
+                return self::handleManaSetCommand($request, $command);
             default:
                 return response()->json([
                     'message' => "Unknown command: {$command}"
@@ -192,7 +194,7 @@ class CommandsController extends Controller
         );
     }
 
-    protected static function handleHourlyManaSetCommand(Request $request): void
+    protected static function handleManaSetCommand(Request $request, string $command): void
     {
         $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
 
@@ -200,17 +202,40 @@ class CommandsController extends Controller
             $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us.';
         } else {
             // Assuming the command is followed by the mana amount
-            $mana = str_replace('/hmset ', '', $request->input('message.text', ''));
+            $mana = preg_replace('/[^\d.]/', '', $request->input('message.text', '')); // remove any non-numeric characters except for the decimal point
+            $mana = str_replace(',', '.', $mana); // replace comma with dot for decimal point
             $mana = trim($mana);
-            $mana = str_replace(',', '.', $mana); // Replace comma with dot for decimal values
             $mana = floatval($mana);
 
+            $time = '';
+            if ($command === '/hmset') {
+                $time = "hourly";
+                $property_to_update = 'hourly_mana';
+            } else if ($command === '/mmset') {
+                $time = "monthly";
+                $property_to_update = 'monthly_mana';
+            } else if ($command === '/ymset') {
+                $time = "yearly";
+                $property_to_update = 'yearly_mana';
+            }
+
             if ($mana <= 0 || !is_numeric($mana) || empty($mana)) {
-                $textToSend = "Please provide a valid hourly mana gain ✨ to the council. You can cast 🪄 /hmset followed by the amount of your hourly mana gain to update it. (Example: /hmset 7.5)";
+                $textToSend = "Please provide a valid {$time} mana gain ✨ amount. Example: /{$command} 7.5";
             } else {
-                $telegramUser->hourly_mana = $mana;
+                
+                if ($command === '/hmset') {
+                    $telegramUser->{$property_to_update} = $mana;
+                    $textToSend = "Your hourly mana gain ✨ has been set to {$mana}.";
+                } else if ($command === '/mmset') {
+                    $telegramUser->{$property_to_update} = $mana;
+                    $textToSend = "Your monthly mana gain ✨ has been set to {$mana}.";
+                } else if ($command === '/ymset') {
+                    $telegramUser->{$property_to_update} = $mana;
+                    $textToSend = "Your yearly mana gain ✨ has been set to {$mana}.";
+                }
+
                 $telegramUser->save();
-                $textToSend = "Your hourly mana gain ✨ has been set to {$mana}.";
+                $textToSend = "Your {$time} mana gain ✨ has been set to {$mana}.";
             }
         }
 
