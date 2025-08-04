@@ -8,13 +8,14 @@ use App\Models\TelegramUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\TelegramUtilsController;
 
 class TelegramController extends Controller
 {
     public function inbound(Request $request)
     {
         return ApiResponse::handle(function() use ($request) {
-            $command = CommandsController::extractCommandFromText($request->input('message.text', ''));
+            $command = TelegramUtilsController::extractCommandFromText($request->input('message.text', ''));
 
             if (!empty($command)) {
                 Log::info('Telegram command detected');
@@ -60,7 +61,7 @@ class TelegramController extends Controller
                     'amount' => $amount,
                 ]);
 
-                $textToSend = 'You cast the wrong spell ❌. I think you missed out on something. Maybe a transaction amount? 🧐 Please try again with a valid amount.';
+                $textToSend = 'You cast the wrong spell ❌. I think you missed out on something. Maybe a mana amount? 🧐 Please try again with a valid amount.';
             } else {
                 Log::info('Valid transaction amount received', [
                     'amount' => $amount,
@@ -87,13 +88,13 @@ class TelegramController extends Controller
 
                         $hourTranslation = $hours === 1 ? 'hour' : 'hours';
                         $minuteTranslation = $minutes === 1 ? 'minute' : 'minutes';
-                        $textToSend = "You have casted 🪄 a transaction amount of $amount. You have used $hours $hourTranslation and $minutes $minuteTranslation of your time to cast this spell ⏳.\n";
+                        $textToSend = "You have used $amount of your mana ✨ that corresponds to $hours $hourTranslation and $minutes $minuteTranslation of your time ⏳.\n";
                     } else {
-                        $textToSend = "You have casted 🪄 a transaction amount of $amount. The council of the Wizardry will take care of it. 🏦";
+                        $textToSend = "You have used $amount of your mana ✨";
                     }
 
                 } else {
-                    $textToSend = "You have casted 🪄 a transaction amount of $amount. The council of the Wizardry will take care of it. 🏦";
+                    $textToSend = "You have used $amount of your mana ✨";
                 }
             }
 

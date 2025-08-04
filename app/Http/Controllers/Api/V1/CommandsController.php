@@ -6,6 +6,7 @@ use App\Models\TelegramUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\TelegramAvailableCommand;
+use App\Models\Transaction;
 
 class CommandsController extends Controller
 {
@@ -24,6 +25,11 @@ class CommandsController extends Controller
             case '/mmset':
             case '/ymset':
                 return self::handleManaSetCommand($request, $command);
+            case '/rdm':
+            case '/rwm':
+            case '/rmm':
+            case '/rym':
+                return self::handleTransactionsInfoCommand($request, $command);
             default:
                 app('telegramBot')->sendMessage(
                     'Wizard, The council do not know this summon. Please cast 🪄 /help to see all available summons.',
@@ -32,16 +38,6 @@ class CommandsController extends Controller
                 );
         }
     }
-
-    public static function extractCommandFromText($text): string
-    {
-        // Extract command from the text, assuming commands start with '/'
-        if (preg_match('/\/(\w+)/', $text, $matches)) {
-            return '/' . $matches[1];
-        }
-
-        return '';
-    } 
 
     protected static function handleRulesCommand(Request $request): void
     {
@@ -239,6 +235,52 @@ class CommandsController extends Controller
                 $telegramUser->save();
                 $textToSend = "Your {$time} mana gain ✨ has been set to {$mana}.";
             }
+        }
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+
+    protected static function handleTransactionsInfoCommand(Request $request, string $command): void
+    {
+        $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
+
+        if (!$telegramUser) {
+            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us.';
+        } else {
+            
+            if ($command === '/rdm') {
+                $time_start = now()->startOfDay();
+                $time_end = now()->endOfDay();
+                $period = 'day';
+            } else if ($command === '/rwm') {
+                $time_start = now()->startOfWeek();
+                $time_end = now()->endOfWeek();
+                $period = 'week';
+            } else if ($command === '/rmm') {
+                $time_start = now()->startOfMonth();
+                $time_end = now()->endOfMonth();
+                $period = 'month';
+            } else if ($command === '/rym') {
+                $time_start = now()->startOfYear();
+                $time_end = now()->endOfYear();
+                $period = 'year';
+            }
+
+            $transactions = Transaction::where('telegram_id', $telegramUser->telegram_id)
+                ->whereBetween('updated_at', [$time_start, $time_end])
+                ->get();
+            
+            if ($transactions->isEmpty()) {
+                $textToSend = "You have not used any amount of mana ✨ during this period.";
+            } else {
+                $totalAmount = $transactions->sum('amount');
+                $textToSend = "You have used a total of $totalAmount of your mana ✨ during this $period.";
+            }
+
         }
 
         app('telegramBot')->sendMessage(
