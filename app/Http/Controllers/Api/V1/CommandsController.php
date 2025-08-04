@@ -25,9 +25,11 @@ class CommandsController extends Controller
             case '/ymset':
                 return self::handleManaSetCommand($request, $command);
             default:
-                return response()->json([
-                    'message' => "Unknown command: {$command}"
-                ], 400);
+                app('telegramBot')->sendMessage(
+                    'Wizard, The council do not know this summon. Please cast 🪄 /help to see all available summons.',
+                    $request->input('message.chat.id'),
+                    null
+                );
         }
     }
 
