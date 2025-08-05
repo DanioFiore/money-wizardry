@@ -4,12 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TelegramAvailableCommand extends Model
+class TelegramAvailableSummon extends Model
 {
-    protected $table = 'telegram__available_commands';
+    protected $table = 'telegram__available_summons';
 
     protected $fillable = [
-        'command',
+        'summon',
         'description',
         'is_active',
         'type',

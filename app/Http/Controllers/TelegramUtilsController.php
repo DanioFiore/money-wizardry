@@ -6,9 +6,9 @@ use Illuminate\Http\Request;
 
 class TelegramUtilsController extends Controller
 {
-    public static function extractCommandFromText($text): string
+    public static function extractSummonFromText($text): string
     {
-        // Extract command from the text, assuming commands start with '/'
+        // Extract summon (command) from the text, assuming commands start with '/'
         if (preg_match('/\/(\w+)/', $text, $matches)) {
             return '/' . $matches[1];
         }

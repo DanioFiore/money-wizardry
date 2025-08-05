@@ -17,12 +17,14 @@ return new class extends Migration
             $table->string('username')->nullable();
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
-            $table->float('hourly_mana')->default(0);
-            $table->float('monthly_mana')->default(0);
-            $table->float('yearly_mana')->default(0);
-            $table->tinyInteger('hourly_comparison')->default(0);
+            $table->float('hourly_mana_gain')->default(0);
+            $table->float('monthly_mana_gain')->default(0);
+            $table->float('yearly_mana_gain')->default(0);
+            $table->tinyInteger('time_comparison')->default(0);
             $table->unsignedBigInteger('user_id')->unique()->nullable();
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 

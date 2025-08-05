@@ -1,0 +1,287 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Models\ManaSpent;
+use App\Models\TelegramUser;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\Models\TelegramAvailableSummon;
+
+class SummonsController extends Controller
+{
+    public static function handleSummon(Request $request, string $summon)
+    {
+        switch ($summon) {
+            case '/rules':
+                return self::handleRulesSummon($request);
+            case '/help':
+                return self::handleHelpSummon($request);
+            case '/register':
+                return self::handleRegisterSummon($request);
+            case '/tc':
+                return self::handleTimeComparisonSummon($request);
+            case '/hmset':
+            case '/mmset':
+            case '/ymset':
+                return self::handleManaSetSummon($request, $summon);
+            case '/rdm':
+            case '/rwm':
+            case '/rmm':
+            case '/rym':
+                return self::handleManaSpentInfoSummon($request, $summon);
+            default:
+                app('telegramBot')->sendMessage(
+                    'Wizard, The council do not know this summon. Please cast 🪄 /help to see all available summons.',
+                    $request->input('message.chat.id'),
+                    null
+                );
+        }
+    }
+
+    protected static function handleRulesSummon(Request $request): void
+    {
+        $textToSend = '';
+
+        // TODO: implement
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null // actual message ID if needed to reply to
+        );
+    }
+
+    protected static function handleRegisterSummon(Request $request): void
+    {
+        $textToSend = '';
+
+        // check if the user already exists in the DB
+        if (TelegramUser::where('telegram_id', $request->input('message.from.id'))->exists()) {
+            $textToSend = 'You are already part of the council, Wizard 🧙🏼‍♂️.';
+        } else {
+            // create a new TelegramUser or update existing one
+            TelegramUser::updateOrCreate(
+                [
+                    'telegram_id' => $request->input('message.from.id')
+                ],
+                [
+                    'username' => $request->input('message.from.username', null),
+                    'first_name' => $request->input('message.from.first_name', null),
+                    'last_name' => $request->input('message.from.last_name', null),
+                ]
+            );
+
+            $textToSend = 'You are now part of the council, Wizard 🧙🏼‍♂️. Use /rules to begin your journey and learn the rules of the council 🏯.';
+        }
+
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+
+    protected static function handleHelpSummon(Request $request): void
+    {
+        $textToSend = "🪄 Available summons in the council of Wizardry 🪄\n\n";
+        
+        $summonsList = TelegramAvailableSummon::where('is_active', true)->get();
+
+        $baseSummons = "";
+        $manaSummons = "";
+        $infoSummons = "";
+        $reportSummons = "";
+
+        if ($summonsList->isEmpty()) {
+            $textToSend = "No available summons at the moment. Please check back later.";
+        } else {
+            foreach ($summonsList as $summon) {
+
+                switch ($summon->type) {
+                    case 'base':
+
+                        if (empty($baseSummons)) {
+                            $baseSummons .= "Base 🏯:\n";
+                        }
+
+                        $baseSummons .= "{$summon->summon} - {$summon->description}\n";
+
+                        break;
+                    case 'mana':
+
+                        if (empty($manaSummons)) {
+                            $manaSummons .= "Mana ✨:\n";
+                        }
+
+                        $manaSummons .= "{$summon->summon} - {$summon->description}\n";
+
+                        break;
+                    case 'info':
+
+                        if (empty($infoSummons)) {
+                            $infoSummons .= "Info 📜:\n";
+                        }
+
+                        $infoSummons .= "{$summon->summon} - {$summon->description}\n";
+
+                        break;
+                    case 'report':
+
+                        if (empty($reportSummons)) {
+                            $reportSummons .= "Report 📊:\n";
+                        }
+
+                        $reportSummons .= "{$summon->summon} - {$summon->description}\n";
+
+                        break;
+                    default:
+                        Log::warning('Unknown summon type', ['type' => $summon->type]);
+                        break;
+                }
+
+            }
+
+        }
+
+        $textToSend .= $baseSummons . "\n";
+        $textToSend .= $manaSummons . "\n";
+        $textToSend .= $infoSummons . "\n";
+        $textToSend .= $reportSummons . "\n";
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+
+    protected static function handleTimeComparisonSummon(Request $request): void
+    {
+        $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
+
+        // if the user does not exist, send a message to register
+        if (!$telegramUser) {
+            $textToSend = env('TELEGRAM_BOT_REGISTER_MSG', 'Registration message not set in .env file. Please set TELEGRAM_BOT_REGISTER_MSG variable.');
+        } else {
+            // if the user does not have an hourly mana gain set, send a message to set it
+            if (!$telegramUser->hourly_mana_gain) {
+                $textToSend = "You have not set your hourly mana gain yet. You can cast 🪄 /hmset followed by the amount of your hourly mana gain ✨ to update it. (Example: /hmset 7.5)";
+            } else {
+                $textToSend = "Your summon was successfully casted! Your time comparison is ";
+                $telegramUser->time_comparison = !$telegramUser->time_comparison;
+                $telegramUser->save();
+                $textToSend .= $telegramUser->time_comparison ? 'enabled ✅' : 'disabled ❌';
+
+                // if is enabled, provide the current hourly mana gain
+                if ($telegramUser->time_comparison) {
+                    $textToSend .= ". Your current hourly mana gain ✨ is {$telegramUser->hourly_mana_gain}.";
+                    $textToSend .= " You can cast 🪄 /hmset followed by the amount of your hourly mana gain ✨ to update it. (Example: /hmset 7.5)";
+                }
+
+            }
+        }
+
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+
+    protected static function handleManaSetSummon(Request $request, string $summon): void
+    {
+        $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
+
+        // if the user does not exist, send a message to register
+        if (!$telegramUser) {
+            $textToSend = env('TELEGRAM_BOT_REGISTER_MSG', 'Registration message not set in .env file. Please set TELEGRAM_BOT_REGISTER_MSG variable.');
+        } else {
+            // assuming the summon is followed by the mana amount remove any non-numeric characters except for the decimal point
+            $mana = preg_replace('/[^\d.]/', '', $request->input('message.text', ''));
+            // replace comma with dot for decimal point
+            $mana = str_replace(',', '.', $mana);
+            $mana = trim($mana);
+            $mana = floatval($mana);
+            $time = '';
+
+            if ($summon === '/hmset') {
+                $time = "hourly";
+                $property_to_update = 'hourly';
+            } else if ($summon === '/mmset') {
+                $time = "monthly";
+                $property_to_update = 'monthly';
+            } else if ($summon === '/ymset') {
+                $time = "yearly";
+                $property_to_update = 'yearly';
+            } else {
+                return; // Invalid summon, do nothing
+            }
+
+            $property_to_update .= '_mana_gain';
+
+            if ($mana <= 0 || !is_numeric($mana) || empty($mana)) {
+                $textToSend = "Please provide a valid {$time} mana gain amount ✨. Example: /{$summon} 7.5";
+            } else {
+                $telegramUser->{$property_to_update} = $mana;
+                $textToSend = "Your {$time} mana gain ✨ has been set to {$mana}.";
+                $telegramUser->save();
+            }
+        }
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+
+    protected static function handleManaSpentInfoSummon(Request $request, string $summon): void
+    {
+        $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
+
+        // if the user does not exist, send a message to register
+        if (!$telegramUser) {
+            $textToSend = env('TELEGRAM_BOT_REGISTER_MSG', 'Registration message not set in .env file. Please set TELEGRAM_BOT_REGISTER_MSG variable.');
+        } else {
+            
+            if ($summon === '/rdm') {
+                $time_start = now()->startOfDay();
+                $time_end = now()->endOfDay();
+                $period = 'day';
+            } else if ($summon === '/rwm') {
+                $time_start = now()->startOfWeek();
+                $time_end = now()->endOfWeek();
+                $period = 'week';
+            } else if ($summon === '/rmm') {
+                $time_start = now()->startOfMonth();
+                $time_end = now()->endOfMonth();
+                $period = 'month';
+            } else if ($summon === '/rym') {
+                $time_start = now()->startOfYear();
+                $time_end = now()->endOfYear();
+                $period = 'year';
+            }
+
+            $transactions = ManaSpent::where('telegram_id', $telegramUser->telegram_id)
+                ->whereBetween('updated_at', [$time_start, $time_end])
+                ->get();
+            
+            if ($transactions->isEmpty()) {
+                $textToSend = "You have not used any amount of mana ✨ during this period.";
+            } else {
+                $totalAmount = $transactions->sum('amount');
+                $textToSend = "You have used a total of $totalAmount of your mana ✨ during this $period.";
+            }
+
+        }
+
+        app('telegramBot')->sendMessage(
+            $textToSend,
+            $request->input('message.chat.id'),
+            null
+        );
+    }
+}

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\ApiResponse;
-use App\Models\Transaction;
+use App\Models\ManaSpent;
 use App\Models\TelegramUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -15,68 +15,52 @@ class TelegramController extends Controller
     public function inbound(Request $request)
     {
         return ApiResponse::handle(function() use ($request) {
-            $command = TelegramUtilsController::extractCommandFromText($request->input('message.text', ''));
+            $summon = TelegramUtilsController::extractSummonFromText($request->input('message.text', ''));
 
-            if (!empty($command)) {
-                Log::info('Telegram command detected');
-                
-                // Handle the command
-                return CommandsController::handleCommand($request, $command);
+            if (!empty($summon)) {
+                Log::info('Telegram summon detected');
+
+                // Handle the summon
+                return SummonsController::handleSummon($request, $summon);
             } else {
                 // check the message text to answer
-                return $this->handleTransactionMessage($request);
+                return $this->handleManaSpentMessage($request);
             }
 
             return 'success';
         });
     }
 
-    protected function handleTransactionMessage(Request $request): void
+    protected function handleManaSpentMessage(Request $request): void
     {
-        Log::info('Handling transaction message', [
-            'message' => $request->input('message.text'),
-        ]);
-
+        // check if the user exists in the DB
         $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
 
+        // if the user does not exist, send a message to register
         if (!$telegramUser) {
-            Log::warning('Telegram user not found', [
-                'telegram_id' => $request->input('message.from.id'),
-            ]);
-
-            $textToSend = 'Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us.';
+            $textToSend = env('TELEGRAM_BOT_REGISTER_MSG', 'Registration message not set in .env file. Please set TELEGRAM_BOT_REGISTER_MSG variable.');
         } else {
-            Log::info('Telegram user found', [
-                'telegram_id' => $telegramUser->telegram_id,
-                'username' => $telegramUser->username,
-            ]);
-
             $amount = trim($request->input('message.text'));
-            $amount = str_replace(',', '.', $amount); // replace comma with dot for decimal point
-            $amount = preg_replace('/[^\d.]/', '', $amount); // remove any non-numeric characters except for the decimal point
+            // replace comma with dot for decimal point
+            $amount = str_replace(',', '.', $amount);
+            // remove any non-numeric characters except for the decimal point
+            $amount = preg_replace('/[^\d.]/', '', $amount);
             $amount = floatval($amount);
 
-            if ($amount <= 0) {
-                Log::warning('Invalid transaction amount', [
-                    'amount' => $amount,
-                ]);
-
-                $textToSend = 'You cast the wrong spell ❌. I think you missed out on something. Maybe a mana amount? 🧐 Please try again with a valid amount.';
+            // check if the amount is valid
+            if ($amount <= 0 || !is_numeric($amount) || empty($amount)) {
+                $textToSend = 'You cast the wrong spell ❌. I think you missed out on something. Maybe a mana amount? 🧐';
             } else {
-                Log::info('Valid transaction amount received', [
-                    'amount' => $amount,
-                ]);
+                $new_mana_spent = new ManaSpent();
+                $new_mana_spent->telegram_id = $telegramUser->telegram_id;
+                $new_mana_spent->amount = $amount;
+                $new_mana_spent->save();
 
-                $new_transaction = new Transaction();
-                $new_transaction->telegram_id = $telegramUser->telegram_id;
-                $new_transaction->amount = $amount;
-                $new_transaction->save();
+                if ($telegramUser->time_comparison) {
 
-                if ($telegramUser->hourly_comparison) {
-
-                    if ($telegramUser->hourly_mana) {
+                    if ($telegramUser->hourly_mana_gain) {
                         // calculate necessary hours and minutes
-                        $hoursNeeded = $amount / $telegramUser->hourly_mana;
+                        $hoursNeeded = $amount / $telegramUser->hourly_mana_gain;
                         $hours = floor($hoursNeeded);
                         $minutes = round(($hoursNeeded - $hours) * 60);
                         
@@ -86,8 +70,8 @@ class TelegramController extends Controller
                             $minutes = 0;
                         }
 
-                        $hourTranslation = $hours === 1 ? 'hour' : 'hours';
-                        $minuteTranslation = $minutes === 1 ? 'minute' : 'minutes';
+                        $hourTranslation = $hours == 1 ? 'hour' : 'hours';
+                        $minuteTranslation = $minutes == 1 ? 'minute' : 'minutes';
                         $textToSend = "You have used $amount of your mana ✨ that corresponds to $hours $hourTranslation and $minutes $minuteTranslation of your time ⏳.\n";
                     } else {
                         $textToSend = "You have used $amount of your mana ✨";
