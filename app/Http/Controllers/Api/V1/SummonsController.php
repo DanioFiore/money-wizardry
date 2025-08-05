@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\ManaSpent;
 use App\Models\TelegramUser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\TelegramAvailableSummon;
 
@@ -12,24 +13,42 @@ class SummonsController extends Controller
 {
     public static function handleSummon(Request $request, string $summon)
     {
+        $summonsWithSimilarities = self::getSummonsWithSimilarities();
+
         switch ($summon) {
             case '/rules':
+            case isset($summonsWithSimilarities['/rules']) && in_array($summon, $summonsWithSimilarities['/rules']):
                 return self::handleRulesSummon($request);
             case '/help':
+            case isset($summonsWithSimilarities['/help']) && in_array($summon, $summonsWithSimilarities['/help']):
                 return self::handleHelpSummon($request);
             case '/register':
+            case isset($summonsWithSimilarities['/register']) && in_array($summon, $summonsWithSimilarities['/register']):
                 return self::handleRegisterSummon($request);
             case '/stc':
+            case isset($summonsWithSimilarities['/stc']) && in_array($summon, $summonsWithSimilarities['/stc']):
                 return self::handleSetTimeComparisonSummon($request);
             case '/shmg':
+            case isset($summonsWithSimilarities['/shmg']) && in_array($summon, $summonsWithSimilarities['/shmg']):
+                return self::handleSetManaSummon($request, '/shmg');
             case '/smmg':
+            case isset($summonsWithSimilarities['/smmg']) && in_array($summon, $summonsWithSimilarities['/smmg']):
+                return self::handleSetManaSummon($request, '/smmg');
             case '/symg':
-                return self::handleSetManaSummon($request, $summon);
+            case isset($summonsWithSimilarities['/symg']) && in_array($summon, $summonsWithSimilarities['/symg']):
+                return self::handleSetManaSummon($request, '/symg');
             case '/vdms':
+            case isset($summonsWithSimilarities['/vdms']) && in_array($summon, $summonsWithSimilarities['/vdms']):
+                return self::handleManaSpentInfoSummon($request, '/vdms');
             case '/vwms':
+            case isset($summonsWithSimilarities['/vwms']) && in_array($summon, $summonsWithSimilarities['/vwms']):
+                return self::handleManaSpentInfoSummon($request, '/vwms');
             case '/vmms':
+            case isset($summonsWithSimilarities['/vmms']) && in_array($summon, $summonsWithSimilarities['/vmms']):
+                return self::handleManaSpentInfoSummon($request, '/vmms');
             case '/vyms':
-                return self::handleManaSpentInfoSummon($request, $summon);
+            case isset($summonsWithSimilarities['/vyms']) && in_array($summon, $summonsWithSimilarities['/vyms']):
+                return self::handleManaSpentInfoSummon($request, '/vyms');
             default:
                 app('telegramBot')->sendMessage(
                     'Wizard, The council do not know this summon. Please cast 🪄 /help to see all available summons.',
@@ -37,6 +56,30 @@ class SummonsController extends Controller
                     null
                 );
         }
+    }
+
+    public static function getSummonsWithSimilarities(): array
+    {
+        // Fetch all active summons from the database
+        $summonsWithSimilarities = DB::select('SELECT 
+                                                    s.summon,
+                                                    CASE 
+                                                        WHEN COUNT(sim.summon) > 0 
+                                                        THEN JSON_ARRAYAGG(sim.summon) 
+                                                        ELSE JSON_ARRAY() 
+                                                    END as similarities_array
+                                                FROM telegram__available_summons s
+                                                LEFT JOIN telegram__available_summons_similarities sim ON s.summon = sim.similarity_summon
+                                                GROUP BY s.summon;'
+                                            );
+        
+        $summonsArray = [];
+        
+        foreach ($summonsWithSimilarities as $row) {
+            $summonsArray[$row->summon] = json_decode($row->similarities_array, true);
+        }
+
+        return $summonsArray;
     }
 
     protected static function handleRulesSummon(Request $request): void
