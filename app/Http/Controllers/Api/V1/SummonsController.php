@@ -19,16 +19,16 @@ class SummonsController extends Controller
                 return self::handleHelpSummon($request);
             case '/register':
                 return self::handleRegisterSummon($request);
-            case '/tc':
-                return self::handleTimeComparisonSummon($request);
-            case '/hmset':
-            case '/mmset':
-            case '/ymset':
-                return self::handleManaSetSummon($request, $summon);
-            case '/rdm':
-            case '/rwm':
-            case '/rmm':
-            case '/rym':
+            case '/stc':
+                return self::handleSetTimeComparisonSummon($request);
+            case '/shmg':
+            case '/smmg':
+            case '/symg':
+                return self::handleSetManaSummon($request, $summon);
+            case '/vdms':
+            case '/vwms':
+            case '/vmms':
+            case '/vyms':
                 return self::handleManaSpentInfoSummon($request, $summon);
             default:
                 app('telegramBot')->sendMessage(
@@ -157,7 +157,7 @@ class SummonsController extends Controller
         );
     }
 
-    protected static function handleTimeComparisonSummon(Request $request): void
+    protected static function handleSetTimeComparisonSummon(Request $request): void
     {
         $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
 
@@ -167,7 +167,7 @@ class SummonsController extends Controller
         } else {
             // if the user does not have an hourly mana gain set, send a message to set it
             if (!$telegramUser->hourly_mana_gain) {
-                $textToSend = "You have not set your hourly mana gain yet. You can cast 🪄 /hmset followed by the amount of your hourly mana gain ✨ to update it. (Example: /hmset 7.5)";
+                $textToSend = "You have not set your hourly mana gain yet. You can cast 🪄 /shmg followed by the amount of your hourly mana gain ✨ to update it. (Example: /shmg 7.5)";
             } else {
                 $textToSend = "Your summon was successfully casted! Your time comparison is ";
                 $telegramUser->time_comparison = !$telegramUser->time_comparison;
@@ -177,7 +177,7 @@ class SummonsController extends Controller
                 // if is enabled, provide the current hourly mana gain
                 if ($telegramUser->time_comparison) {
                     $textToSend .= ". Your current hourly mana gain ✨ is {$telegramUser->hourly_mana_gain}.";
-                    $textToSend .= " You can cast 🪄 /hmset followed by the amount of your hourly mana gain ✨ to update it. (Example: /hmset 7.5)";
+                    $textToSend .= " You can cast 🪄 /shmg followed by the amount of your hourly mana gain ✨ to update it. (Example: /shmg 7.5)";
                 }
 
             }
@@ -191,7 +191,7 @@ class SummonsController extends Controller
         );
     }
 
-    protected static function handleManaSetSummon(Request $request, string $summon): void
+    protected static function handleSetManaSummon(Request $request, string $summon): void
     {
         $telegramUser = TelegramUser::where('telegram_id', $request->input('message.from.id'))->first();
 
@@ -207,13 +207,13 @@ class SummonsController extends Controller
             $mana = floatval($mana);
             $time = '';
 
-            if ($summon === '/hmset') {
+            if ($summon === '/shmg') {
                 $time = "hourly";
                 $property_to_update = 'hourly';
-            } else if ($summon === '/mmset') {
+            } else if ($summon === '/smmg') {
                 $time = "monthly";
                 $property_to_update = 'monthly';
-            } else if ($summon === '/ymset') {
+            } else if ($summon === '/symg') {
                 $time = "yearly";
                 $property_to_update = 'yearly';
             } else {
@@ -247,19 +247,19 @@ class SummonsController extends Controller
             $textToSend = env('TELEGRAM_BOT_REGISTER_MSG', 'Registration message not set in .env file. Please set TELEGRAM_BOT_REGISTER_MSG variable.');
         } else {
             
-            if ($summon === '/rdm') {
+            if ($summon === '/vdms') {
                 $time_start = now()->startOfDay();
                 $time_end = now()->endOfDay();
                 $period = 'day';
-            } else if ($summon === '/rwm') {
+            } else if ($summon === '/vwms') {
                 $time_start = now()->startOfWeek();
                 $time_end = now()->endOfWeek();
                 $period = 'week';
-            } else if ($summon === '/rmm') {
+            } else if ($summon === '/vmms') {
                 $time_start = now()->startOfMonth();
                 $time_end = now()->endOfMonth();
                 $period = 'month';
-            } else if ($summon === '/rym') {
+            } else if ($summon === '/vyms') {
                 $time_start = now()->startOfYear();
                 $time_end = now()->endOfYear();
                 $period = 'year';
