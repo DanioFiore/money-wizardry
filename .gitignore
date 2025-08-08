@@ -69,3 +69,20 @@ build
 **/caddy
 frankenphp
 frankenphp-worker.php
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform
+.terraform.lock.hcl
+crash.log
+*.tfvars
+*.tfvars.json
+*.tfplan
+*.tfplan.json
+
+# Terraform output files
+*.tfoutput
+*.tfoutput.json
+
+/infrastructure/service_accounts/*
