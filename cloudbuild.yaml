@@ -6,7 +6,7 @@ steps:
       - '-t'
       - 'europe-west1-docker.pkg.dev/money-wizardry-prod/money-wizardry-repo:$COMMIT_SHA'
       - '-t'
-      - 'europe-west1-docker.pkg.dev/money-wizardry-prod/money-wizardry-repo:latest'
+      - 'europe-west1-docker.pkg.dev/money-wizardry-prod/money-wizardry-repo/app:latest'
       - '.'
 
   # Push to registry

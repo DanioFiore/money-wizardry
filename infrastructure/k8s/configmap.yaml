@@ -7,7 +7,6 @@ data:
   APP_ENV: "production"
   APP_DEBUG: "false"
   LOG_CHANNEL: "stderr"
-  
   DB_CONNECTION: "mysql"
   DB_HOST: "10.230.192.3" 
   DB_PORT: "3306"
