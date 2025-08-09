@@ -1,5 +1,5 @@
 # multi-stage build to optimize image size
-FROM composer:2.6 as vendor
+FROM composer:2.6 AS vendor
 
 WORKDIR /tmp/
 COPY composer.json composer.lock ./
@@ -35,10 +35,16 @@ WORKDIR /app
 # copy vendor from previous stage
 COPY --from=vendor /tmp/vendor/ /app/vendor/
 
+RUN echo "APP_ENV=production" > .env && \
+    echo "APP_DEBUG=false" >> .env && \
+    echo "LOG_CHANNEL=stderr" >> .env
+
 # copy application code
 COPY . .
 
-# laravel optimizations
+COPY .env.production .env
+
+# optimize Laravel
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
