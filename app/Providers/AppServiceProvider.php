@@ -14,6 +14,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton('telegramBot', function ($app) {
             return new \App\Services\TelegramBot();
         });
+
+        if (class_exists(\Laravel\Pail\PailServiceProvider::class)) {
+            $this->app->register(\Laravel\Pail\PailServiceProvider::class);
+        }
     }
 
     /**
