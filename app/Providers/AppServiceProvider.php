@@ -15,7 +15,8 @@ class AppServiceProvider extends ServiceProvider
             return new \App\Services\TelegramBot();
         });
 
-        if (class_exists(\Laravel\Pail\PailServiceProvider::class)) {
+        if ($this->app->environment(['local', 'testing']) && 
+            class_exists(\Laravel\Pail\PailServiceProvider::class)) {
             $this->app->register(\Laravel\Pail\PailServiceProvider::class);
         }
     }
