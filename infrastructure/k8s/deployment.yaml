@@ -17,7 +17,7 @@ spec:
       - name: money-wizardry
         image: europe-west1-docker.pkg.dev/money-wizardry-prod/money-wizardry-repo/app:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 80
         
         envFrom:
         - configMapRef:
@@ -51,7 +51,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8000
+            port: 80
           initialDelaySeconds: 120
           periodSeconds: 30
           failureThreshold: 5
@@ -59,7 +59,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /ready
-            port: 8000
+            port: 80
           initialDelaySeconds: 30
           periodSeconds: 5
           timeoutSeconds: 5
