@@ -224,6 +224,11 @@ RUN chown -R mw:mw /app \
     && chmod -R 775 /app/storage \
     && chmod -R 775 /app/bootstrap/cache
 
+# Create health check script
+COPY --chown=mw:mw infrastructure/docker/health-check.sh /app/health-check.sh
+
+RUN chmod +x /app/health-check.sh
+
 # Switch to non-root user for security
 USER mw
 
@@ -237,6 +242,10 @@ ENV OCTANE_WORKERS=auto \
     FRANKENPHP_NUM_THREADS=auto \
     PHP_MEMORY_LIMIT=512M \
     PHP_MAX_EXECUTION_TIME=30
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD ["/app/health-check.sh"]
 
 # Set the default command to start Laravel Octane
 CMD ["/app/start-octane.sh"]
