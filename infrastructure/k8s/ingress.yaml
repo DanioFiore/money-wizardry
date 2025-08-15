@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: money-wizardry-ingress
+  namespace: money-wizardry
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "money-wizardry-vpc-ip-range"
+    networking.gke.io/managed-certificates: "money-wizardry-ssl"
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  ingressClassName: gce
+  rules:
+  - host: money-wizardry.inkeisoft.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: money-wizardry-service
+            port:
+              number: 80

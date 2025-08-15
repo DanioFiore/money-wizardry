@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: money-wizardry-ssl
+  namespace: money-wizardry
+spec:
+  domains:
+    - money-wizardry.inkeisoft.com

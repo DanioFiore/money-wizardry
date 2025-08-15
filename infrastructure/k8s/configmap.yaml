@@ -12,3 +12,18 @@ data:
   DB_PORT: "3306"
   DB_DATABASE: "mw"
   DB_USERNAME: "mw"
+  # Redis
+  # REDIS_HOST: "10.x.x.x"  # Il tuo IP Redis (da ottenere dopo)
+  # REDIS_PORT: "6379"
+  
+  # Cache e Sessions
+  # CACHE_STORE: "redis"
+  # SESSION_DRIVER: "redis"
+  # SESSION_DOMAIN: ".inkeisoft.com"
+  # QUEUE_CONNECTION: "redis"
+
+  # Telegram
+  TELEGRAM_API_ENDPOINT: "https://api.telegram.org"
+  TELEGRAM_WEBHOOK_URL: "https://money-wizardry.inkeisoft.com/api/v1/telegram/webhooks/inbound"
+  TELEGRAM_ASYNC_REQUESTS: "true"
+  TELEGRAM_BOT_REGISTER_MSG: "Welcome, foreigner. The council of the Wizardry awaits you 🏯. Please cast 🪄 /register to join us."
