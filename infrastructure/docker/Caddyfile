@@ -1,0 +1,69 @@
+{
+    # Global FrankenPHP configuration
+    frankenphp {
+        # Worker configuration for Laravel Octane
+        worker /app/public/index.php
+        num_threads {$FRANKENPHP_NUM_THREADS:auto}
+    }
+    
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        # Prevent MIME sniffing
+        X-Content-Type-Options "nosniff"
+        # XSS Protection
+        X-Frame-Options "DENY"
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Content Security Policy (adjust as needed)
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+        # Remove server information
+        -Server
+        -X-Powered-By
+    }
+}
+
+# Main server block
+{$SERVER_NAME:localhost} {
+    # Document root
+    root * /app/public
+    
+    # Enable Gzip compression
+    encode gzip
+    
+    # Security: Hide sensitive files
+    @forbidden {
+        path /.env*
+        path /.git/*
+        path /config/*
+        path /storage/*
+        path /vendor/*
+        path /*.md
+        path /composer.*
+        path /package.*
+        path /artisan
+    }
+    respond @forbidden 404
+
+    # Handle PHP files with FrankenPHP
+    php_fastcgi unix//var/run/php/php-fpm.sock
+    
+    # Static file handling with caching
+    @static {
+        file
+        path *.css *.js *.ico *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    header @static {
+        Cache-Control "public, max-age=31536000, immutable"
+        Expires "1 year"
+    }
+    
+    # Laravel routing
+    try_files {path} {path}/ /index.php?{query}
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+}

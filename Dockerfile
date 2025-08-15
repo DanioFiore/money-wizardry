@@ -7,7 +7,7 @@
 # STAGE 1: BUILDER STAGE
 # Purpose: Install dependencies, compile assets, and prepare application
 # -----------------------------------------------------------------------------
-FROM dunglas/frankenphp:latest AS builder
+FROM dunglas/frankenphp:php8.3 AS builder
 
 # Install system dependencies required for building
 # - git: for composer dependencies from git repos
@@ -70,11 +70,43 @@ COPY package*.json ./
 
 # Install Node.js dependencies
 # Include dev dependencies needed for building assets
-# --no-audit: Skip security audit for faster builds
+
+# npm ci is a command that installs dependencies from a package-lock.json file in a clean, reproducible way. It's specifically designed for automated environments like CI/CD pipelines and Docker builds.
+
+# Key differences from npm install:
+# Faster: Bypasses package resolution since it uses the exact versions in package-lock.json
+# Deterministic: Always installs the same dependency tree across different environments
+# Clean slate: Removes node_modules first, then installs fresh
+# Strict: Fails if package.json and package-lock.json are out of sync
+# The --no-audit flag:
+# This skips the security vulnerability check that npm normally runs after installation. In Docker builds, this is common because:
+# It speeds up the build process
+# Security auditing can be done separately in your CI pipeline
+# Reduces build output noise
 RUN npm ci --no-audit
 
 # Copy application source code
 COPY . .
+
+# The permission 755 is an octal notation that defines file or directory permissions in Unix/Linux systems.
+# First digit: Owner permissions
+# Second digit: Group permissions
+# Third digit: Other users permissions
+
+# Each digit is the sum of:
+# 4 = Read permission
+# 2 = Write permission
+# 1 = Execute permission
+
+# 7 (Owner): 4+2+1 = Read + Write + Execute
+# 5 (Group): 4+0+1 = Read + Execute (no write)
+# 5 (Others): 4+0+1 = Read + Execute (no write)
+
+# This permission is typically used for:
+# Executable files (scripts, binaries)
+# Directories (where execute permission allows entering the directory)
+# Public scripts that should be readable and runnable by others but only modifiable by the owner
+# In the Dockerfile context, we're likely setting permissions for files or directories being copied into the container image.
 
 # Set proper permissions for Laravel directories
 # Storage and cache directories need write access
@@ -83,8 +115,8 @@ RUN chown -R www-data:www-data /app \
     && chmod -R 775 /app/storage \
     && chmod -R 775 /app/bootstrap/cache
 
-# Build and optimize assets  
-# Laravel Mix/Vite compilation for production
+# Build and optimize assets
+# Laravel Vite compilation for production
 # Add node_modules/.bin to PATH and run npm build
 ENV PATH="/app/node_modules/.bin:$PATH"
 RUN npm run build
@@ -124,6 +156,23 @@ RUN install-php-extensions \
     opcache \
     pcntl
 
+# groupadd -g 1000 mw - Creates a new group named "mw"
+# -g 1000 assigns group ID 1000 to mw
+# Group ID 1000 is commonly used for the first non-system user group
+
+# useradd -u 1000 -g mw -m mw - Creates a new user named "mw"
+# -u 1000 assigns user ID 1000 (matches the group ID)
+# -g mw sets the primary group to the "mw" group created above
+# -m creates a home directory for the user (/home/mw)
+
+# usermod -a -G www-data mw - Modifies the existing "mw" user
+# -a -G www-data adds the user to the "www-data" group as a supplementary group
+# The "www-data" group is typically used by web servers (Apache, Nginx) for file permissions
+
+# Why This Setup Matters
+# Security & Permissions: Running processes as a non-root user is a security best practice. The user ID 1000 often matches the developer's local user ID, making file permission handling smoother between the container and host system.
+# Web Server Integration: Adding the user to the www-data group allows your application to interact properly with web server processes that also run under this group.
+
 # Create application user for security
 # Running as non-root user reduces security risks
 RUN groupadd -g 1000 mw \
@@ -133,325 +182,38 @@ RUN groupadd -g 1000 mw \
 # Set working directory
 WORKDIR /app
 
+
+# --from=builder - Copies from a previous build stage named "builder" instead of the build context. This indicates our previous stage
+# --chown=mw:mw - Sets ownership of copied files to user mw and group mw
+# /app /app - Copies from app directory in the builder stage to app directory in the current stage
+
+# Builder stage: Install dependencies and build assets (npm, webpack, etc.)
+# Production stage: Copy only the built artifacts, not the build tools
+# Security & Performance Benefits
+# Smaller final image: Build tools aren't included in the final image
+# Proper ownership: Files are owned by mw user instead of root, improving security
+# Clean separation: Build environment is separate from runtime environment
+# The mw user is likely a non-root user created earlier in the Dockerfile for running the application securely.
+
 # Copy application from builder stage
 # This includes optimized vendor/, built assets, and cached configs
 COPY --from=builder --chown=mw:mw /app /app
 
 # Copy optimized PHP configuration
 # Custom php.ini for production optimizations
-COPY --chown=mw:mw <<EOF /usr/local/etc/php/conf.d/99-laravel.ini
-; =============================================================================
-; LARAVEL OCTANE PHP OPTIMIZATION CONFIGURATION
-; =============================================================================
-
-; Memory Management
-memory_limit = 512M
-max_execution_time = 30
-
-; OPcache Configuration for Maximum Performance
-opcache.enable = 1
-opcache.enable_cli = 1
-opcache.memory_consumption = 256
-opcache.interned_strings_buffer = 32
-opcache.max_accelerated_files = 20000
-opcache.validate_timestamps = 0
-opcache.save_comments = 0
-opcache.enable_file_override = 1
-opcache.optimization_level = 0x7FFFFFFF
-opcache.preload = /app/config/opcache-preload.php
-
-; Realpath Cache Optimization
-realpath_cache_size = 4M
-realpath_cache_ttl = 3600
-
-; File Upload Limits
-upload_max_filesize = 50M
-post_max_size = 50M
-max_file_uploads = 20
-
-; Session Configuration (disabled for Octane)
-session.auto_start = 0
-
-; Error Handling for Production
-display_errors = 0
-display_startup_errors = 0
-log_errors = 1
-error_log = /proc/self/fd/2
-
-; Security Settings
-expose_php = 0
-allow_url_fopen = 0
-allow_url_include = 0
-
-; Performance Settings
-max_input_vars = 10000
-default_socket_timeout = 10
-EOF
+COPY --chown=mw:mw infrastructure/docker/99-laravel.ini /usr/local/etc/php/conf.d/99-laravel.ini
 
 # Create OPcache preload file for Laravel
-COPY --chown=mw:mw <<EOF /app/config/opcache-preload.php
-<?php
-/**
- * OPcache Preload Script for Laravel Octane
- * Preloads core Laravel files into memory for better performance
- */
-
-if (function_exists('opcache_compile_file')) {
-    // Preload Composer autoloader
-    opcache_compile_file('/app/vendor/autoload.php');
-    
-    // Preload Laravel core files
-    \$files = array(
-        '/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php',
-        '/app/vendor/laravel/framework/src/Illuminate/Container/Container.php',
-        '/app/vendor/laravel/framework/src/Illuminate/Support/ServiceProvider.php',
-        '/app/vendor/laravel/framework/src/Illuminate/Http/Request.php',
-        '/app/vendor/laravel/framework/src/Illuminate/Http/Response.php',
-    );
-    
-    foreach (\$files as \$file) {
-        if (file_exists(\$file)) {
-            opcache_compile_file(\$file);
-        }
-    }
-}
-EOF
+COPY --chown=mw:mw infrastructure/docker/opcache-preload.php /app/config/opcache-preload.php
 
 # Create Octane configuration for FrankenPHP
-COPY --chown=mw:mw <<EOF /app/config/octane.php
-<?php
-
-return [
-    /*
-    |--------------------------------------------------------------------------
-    | Octane Server
-    |--------------------------------------------------------------------------
-    */
-    'server' => env('OCTANE_SERVER', 'frankenphp'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Force HTTPS
-    |--------------------------------------------------------------------------
-    */
-    'https' => env('OCTANE_HTTPS', false),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Octane Listeners
-    |--------------------------------------------------------------------------
-    */
-    'listeners' => [
-        \Laravel\Octane\Listeners\WorkerErrorOccurred::class => [
-            \Laravel\Octane\Listeners\ReportException::class,
-            \Laravel\Octane\Listeners\StopWorkerIfNecessary::class,
-        ],
-        \Laravel\Octane\Listeners\WorkerStarting::class => [
-            \Laravel\Octane\Listeners\EnsureUploadedFilesAreValid::class,
-            \Laravel\Octane\Listeners\EnsureUploadedFilesCanBeMoved::class,
-        ],
-        \Laravel\Octane\Listeners\WorkerStopping::class => [],
-        \Laravel\Octane\Listeners\RequestReceived::class => [],
-        \Laravel\Octane\Listeners\RequestHandled::class => [],
-        \Laravel\Octane\Listeners\RequestTerminated::class => [
-            \Laravel\Octane\Listeners\FlushLogContext::class,
-        ],
-        \Laravel\Octane\Listeners\TaskReceived::class => [],
-        \Laravel\Octane\Listeners\TaskTerminated::class => [
-            \Laravel\Octane\Listeners\FlushLogContext::class,
-        ],
-        \Laravel\Octane\Listeners\TickReceived::class => [],
-        \Laravel\Octane\Listeners\TickTerminated::class => [
-            \Laravel\Octane\Listeners\FlushLogContext::class,
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Warm / Flush Bindings
-    |--------------------------------------------------------------------------
-    */
-    'warm' => [
-        'auth',
-        'cache',
-        'cache.store',
-        'config',
-        'db',
-        'log',
-        'queue',
-        'request',
-        'router',
-        'session',
-        'session.store',
-        'view',
-    ],
-
-    'flush' => [
-        'auth',
-        'session',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Octane Cache Table
-    |--------------------------------------------------------------------------
-    */
-    'cache' => [
-        'rows' => 1000,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | File Watching
-    |--------------------------------------------------------------------------
-    */
-    'watch' => [
-        'app',
-        'config',
-        'resources/views',
-        'routes',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Garbage Collection
-    |--------------------------------------------------------------------------
-    */
-    'garbage_collection' => [
-        'enabled' => env('OCTANE_GC_ENABLED', true),
-        'app_requests' => env('OCTANE_GC_APP_REQUESTS', 10000),
-        'task_requests' => env('OCTANE_GC_TASK_REQUESTS', 500),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Maximum Execution Time
-    |--------------------------------------------------------------------------
-    */
-    'max_execution_time' => 30,
-];
-EOF
+COPY --chown=mw:mw infrastructure/docker/octane.php /app/config/octane.php
 
 # Set up FrankenPHP Caddyfile for Laravel Octane
-COPY --chown=mw:mw <<EOF /etc/caddy/Caddyfile
-{
-    # Global FrankenPHP configuration
-    frankenphp {
-        # Worker configuration for Laravel Octane
-        worker /app/public/index.php
-        num_threads {$FRANKENPHP_NUM_THREADS:auto}
-    }
-    
-    # Security headers
-    header {
-        # HSTS
-        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-        # Prevent MIME sniffing
-        X-Content-Type-Options "nosniff"
-        # XSS Protection
-        X-Frame-Options "DENY"
-        # Referrer Policy
-        Referrer-Policy "strict-origin-when-cross-origin"
-        # Content Security Policy (adjust as needed)
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
-        # Remove server information
-        -Server
-        -X-Powered-By
-    }
-}
-
-# Main server block
-{$SERVER_NAME:localhost} {
-    # Document root
-    root * /app/public
-    
-    # Enable Gzip compression
-    encode gzip
-    
-    # Security: Hide sensitive files
-    @forbidden {
-        path /.env*
-        path /.git/*
-        path /config/*
-        path /storage/*
-        path /vendor/*
-        path /*.md
-        path /composer.*
-        path /package.*
-        path /artisan
-    }
-    respond @forbidden 404
-
-    # Handle PHP files with FrankenPHP
-    php_fastcgi unix//var/run/php/php-fpm.sock
-    
-    # Static file handling with caching
-    @static {
-        file
-        path *.css *.js *.ico *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2 *.ttf *.eot
-    }
-    header @static {
-        Cache-Control "public, max-age=31536000, immutable"
-        Expires "1 year"
-    }
-    
-    # Laravel routing
-    try_files {path} {path}/ /index.php?{query}
-    
-    # Health check endpoint
-    handle /health {
-        respond "OK" 200
-    }
-    
-    # Access logs (optional, comment out for production)
-    # log {
-    #     output file /app/storage/logs/access.log
-    #     format json
-    # }
-}
-EOF
+COPY --chown=mw:mw infrastructure/docker/Caddyfile /etc/caddy/Caddyfile
 
 # Create startup script for Laravel Octane
-COPY --chown=mw:mw <<'EOF' /app/start-octane.sh
-#!/bin/bash
-set -e
-
-echo "Starting Money Wizardry..."
-
-# Ensure proper permissions for Laravel directories
-echo "Setting up permissions..."
-mkdir -p /app/storage/logs /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views
-chmod -R 775 /app/storage /app/bootstrap/cache
-chown -R mw:mw /app/storage /app/bootstrap/cache
-
-# Wait for database to be ready (if using MySQL)
-if [ "${DB_CONNECTION}" = "mysql" ]; then
-    echo "Waiting for MySQL to be ready..."
-    while ! mysqladmin ping -h"${DB_HOST}" --silent; do
-        sleep 1
-    done
-    echo "MySQL is ready!"
-fi
-
-# Run database migrations
-echo "Running database migrations..."
-php artisan migrate --force
-
-# Run Laravel optimizations
-echo "Running Laravel optimizations..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-
-# Start Laravel Octane with FrankenPHP
-echo "Starting Octane..."
-exec php artisan octane:frankenphp \
-    --host=0.0.0.0 \
-    --port=80 \
-    --workers="${OCTANE_WORKERS:-auto}" \
-    --max-requests="${OCTANE_MAX_REQUESTS:-1000}" \
-    --no-interaction
-EOF
+COPY --chown=mw:mw infrastructure/docker/start-octane.sh /app/start-octane.sh
 
 # Make startup script executable
 RUN chmod +x /app/start-octane.sh
@@ -461,24 +223,6 @@ RUN chown -R mw:mw /app \
     && chmod -R 755 /app \
     && chmod -R 775 /app/storage \
     && chmod -R 775 /app/bootstrap/cache
-
-# Create health check script
-COPY --chown=mw:mw <<'EOF' /app/health-check.sh
-#!/bin/bash
-# Health check script for Laravel Octane
-set -e
-
-# Check if the application responds
-if curl -f -s http://localhost/health > /dev/null 2>&1; then
-    echo "Health check passed"
-    exit 0
-else
-    echo "Health check failed"
-    exit 1
-fi
-EOF
-
-RUN chmod +x /app/health-check.sh
 
 # Switch to non-root user for security
 USER mw
@@ -493,10 +237,6 @@ ENV OCTANE_WORKERS=auto \
     FRANKENPHP_NUM_THREADS=auto \
     PHP_MEMORY_LIMIT=512M \
     PHP_MAX_EXECUTION_TIME=30
-
-# Health check configuration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD ["/app/health-check.sh"]
 
 # Set the default command to start Laravel Octane
 CMD ["/app/start-octane.sh"]
