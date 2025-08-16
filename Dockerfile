@@ -70,20 +70,7 @@ COPY package*.json ./
 
 # Install Node.js dependencies
 # Include dev dependencies needed for building assets
-
-# npm ci is a command that installs dependencies from a package-lock.json file in a clean, reproducible way. It's specifically designed for automated environments like CI/CD pipelines and Docker builds.
-
-# Key differences from npm install:
-# Faster: Bypasses package resolution since it uses the exact versions in package-lock.json
-# Deterministic: Always installs the same dependency tree across different environments
-# Clean slate: Removes node_modules first, then installs fresh
-# Strict: Fails if package.json and package-lock.json are out of sync
-# The --no-audit flag:
-# This skips the security vulnerability check that npm normally runs after installation. In Docker builds, this is common because:
-# It speeds up the build process
-# Security auditing can be done separately in your CI pipeline
-# Reduces build output noise
-RUN npm ci --no-audit
+RUN npm install
 
 # Copy application source code
 COPY . .
