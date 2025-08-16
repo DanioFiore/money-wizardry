@@ -50,7 +50,7 @@ WORKDIR /app
 
 # Copy composer files first for better Docker layer caching
 # This allows composer install to be cached if composer files haven't changed
-COPY composer.json composer.lock ./
+COPY composer.json ./
 
 # Install PHP dependencies with optimizations
 # --no-dev: Skip development dependencies
