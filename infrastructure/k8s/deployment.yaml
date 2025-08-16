@@ -43,7 +43,7 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "1000m"
+            cpu: "250m"
           limits:
             memory: "512Mi"
             cpu: "500m"
@@ -58,7 +58,7 @@ spec:
         
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /health
             port: 80
           initialDelaySeconds: 30
           periodSeconds: 5

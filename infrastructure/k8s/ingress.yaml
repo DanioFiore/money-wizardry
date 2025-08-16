@@ -4,9 +4,9 @@ metadata:
   name: money-wizardry-ingress
   namespace: money-wizardry
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: "money-wizardry-vpc-ip-range"
+    kubernetes.io/ingress.global-static-ip-name: "money-wizardry-ip"
     networking.gke.io/managed-certificates: "money-wizardry-ssl"
-    kubernetes.io/ingress.allow-http: "false"
+    kubernetes.io/ingress.allow-http: "true" # Abilita temporaneamente HTTP
 spec:
   ingressClassName: gce
   rules:

@@ -1,0 +1,50 @@
+{
+	# Global FrankenPHP configuration
+	frankenphp {
+		worker /app/public/index.php
+		num_threads {$FRANKENPHP_NUM_THREADS:auto}
+	}
+	
+	# Security headers
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+		-Server
+		-X-Powered-By
+	}
+}
+
+{$SERVER_NAME:localhost} {
+	root * /app/public
+	encode gzip
+	
+	@forbidden {
+		path /.env*
+		path /.git/*
+		path /config/*
+		path /storage/*
+		path /vendor/*
+		path /*.md
+		path /composer.*
+		path /package.*
+		path /artisan
+	}
+	respond @forbidden 404
+
+	@static {
+		file
+		path *.css *.js *.ico *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2 *.ttf *.eot
+	}
+	header @static {
+		Cache-Control "public, max-age=31536000, immutable"
+	}
+	
+	try_files {path} {path}/ /index.php?{query}
+	
+	handle /health {
+		respond "OK" 200
+	}
+}
