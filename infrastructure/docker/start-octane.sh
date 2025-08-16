@@ -24,15 +24,21 @@ if [ "${DB_CONNECTION}" = "mysql" ] && [ "${CLOUD_RUN_SERVICE:-}" = "" ]; then
     fi
 fi
 
-# Run database migrations
-echo "Running database migrations..."
-php artisan migrate --force
+# Run database migrations (skip in Cloud Run for faster startup)
+if [ "${SKIP_MIGRATIONS:-}" != "true" ]; then
+    echo "Running database migrations..."
+    timeout 60 php artisan migrate --force || echo "Warning: Migration timeout or failed, continuing..."
+fi
 
-# Run Laravel optimizations
-echo "Running Laravel optimizations..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# Run Laravel optimizations (skip some for faster startup)
+if [ "${SKIP_OPTIMIZATIONS:-}" != "true" ]; then
+    echo "Running Laravel optimizations..."
+    timeout 30 php artisan config:cache || echo "Config cache skipped"
+    timeout 30 php artisan route:cache || echo "Route cache skipped" 
+    timeout 30 php artisan view:cache || echo "View cache skipped"
+else
+    echo "Skipping optimizations for faster startup..."
+fi
 
 # Start Laravel Octane with FrankenPHP
 echo "Starting Octane..."

@@ -202,8 +202,10 @@ COPY --chown=mw:mw infrastructure/docker/Caddyfile /etc/caddy/Caddyfile
 # Create startup script for Laravel Octane
 COPY --chown=mw:mw infrastructure/docker/start-octane.sh /app/start-octane.sh
 
-# Make startup script executable
-RUN chmod +x /app/start-octane.sh
+COPY --chown=mw:mw infrastructure/docker/start-octane-fast.sh /app/start-octane-fast.sh
+
+# Make startup scripts executable
+RUN chmod +x /app/start-octane.sh /app/start-octane-fast.sh
 
 # Set proper file ownership and permissions
 RUN chown -R mw:mw /app \
@@ -235,14 +237,19 @@ ENV OCTANE_WORKERS=auto \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD ["/app/health-check.sh"]
 
-# Set the default command to start Laravel Octane
-CMD ["/app/start-octane.sh"]
+# Set the default command to start Laravel Octane (fast version for Cloud Run)
+CMD ["/app/start-octane-fast.sh"]
 
 # =============================================================================
 # BUILD INSTRUCTIONS:
 # 
 # Build: docker build -t laravel-octane-app .
-# Run: docker run -p 8080:80 -e DB_HOST=mysql -e DB_PASSWORD=secret laravel-octane-app
+# 
+# Cloud Run (fast startup):
+# Default: Uses start-octane-fast.sh automatically
+# 
+# Kubernetes (full features):
+# docker run --entrypoint /app/start-octane.sh laravel-octane-app
 # 
 # Environment variables to configure:
 # - DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
@@ -250,5 +257,7 @@ CMD ["/app/start-octane.sh"]
 # - APP_KEY, APP_ENV, APP_DEBUG
 # - OCTANE_WORKERS, OCTANE_MAX_REQUESTS
 # - FRANKENPHP_NUM_THREADS
+# - SKIP_MIGRATIONS=true (for Cloud Run)
+# - SKIP_OPTIMIZATIONS=true (for fast startup)
 # =============================================================================
 
