@@ -10,12 +10,18 @@ chmod -R 775 /app/storage /app/bootstrap/cache
 chown -R mw:mw /app/storage /app/bootstrap/cache
 
 # Wait for database to be ready (if using MySQL)
-if [ "${DB_CONNECTION}" = "mysql" ]; then
+if [ "${DB_CONNECTION}" = "mysql" ] && [ "${CLOUD_RUN_SERVICE:-}" = "" ]; then
     echo "Waiting for MySQL to be ready..."
-    while ! mysqladmin ping -h"${DB_HOST}" --silent; do
+    timeout=30
+    while ! mysqladmin ping -h"${DB_HOST}" --silent && [ $timeout -gt 0 ]; do
         sleep 1
+        timeout=$((timeout-1))
     done
-    echo "MySQL is ready!"
+    if [ $timeout -eq 0 ]; then
+        echo "Warning: MySQL connection timeout, continuing anyway..."
+    else
+        echo "MySQL is ready!"
+    fi
 fi
 
 # Run database migrations
@@ -32,7 +38,7 @@ php artisan view:cache
 echo "Starting Octane..."
 exec php artisan octane:frankenphp \
     --host=0.0.0.0 \
-    --port=80 \
+    --port="${PORT:-80}" \
     --workers="${OCTANE_WORKERS:-auto}" \
     --max-requests="${OCTANE_MAX_REQUESTS:-1000}" \
     --no-interaction

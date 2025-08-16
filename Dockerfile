@@ -219,7 +219,7 @@ RUN chmod +x /app/health-check.sh
 # Switch to non-root user for security
 USER mw
 
-# Expose port 80 (FrankenPHP default)
+# Expose port 80 (FrankenPHP default, Cloud Run uses $PORT)
 EXPOSE 80
 
 # Environment variables with sensible defaults
@@ -228,7 +228,8 @@ ENV OCTANE_WORKERS=auto \
     OCTANE_GC_ENABLED=true \
     FRANKENPHP_NUM_THREADS=auto \
     PHP_MEMORY_LIMIT=512M \
-    PHP_MAX_EXECUTION_TIME=30
+    PHP_MAX_EXECUTION_TIME=30 \
+    PORT=80
 
 # Health check configuration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
