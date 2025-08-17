@@ -3,6 +3,15 @@ set -e
 
 echo "Starting Money Wizardry (Cloud Run optimized)..."
 
+# Set environment variables for faster startup
+export DB_TIMEOUT=5
+export DB_CONNECT_TIMEOUT=10
+export CACHE_DRIVER=array
+export SESSION_DRIVER=cookie
+export QUEUE_CONNECTION=sync
+export BROADCAST_DRIVER=log
+export LOG_LEVEL=error
+
 # Ensure proper permissions for Laravel directories
 echo "Setting up permissions..."
 mkdir -p /app/storage/logs /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views
@@ -12,8 +21,14 @@ chown -R mw:mw /app/storage /app/bootstrap/cache 2>/dev/null || true
 # Skip slow operations for Cloud Run
 echo "Skipping database checks and optimizations for faster startup..."
 
+# Check if we should skip database entirely (for testing)
+if [ "${SKIP_DATABASE:-false}" = "true" ]; then
+    echo "Database connections disabled for testing..."
+    export DB_CONNECTION=array
+fi
+
 # Start Laravel Octane with FrankenPHP immediately
-echo "Starting Octane..."
+echo "Starting Octane with minimal configuration..."
 exec php artisan octane:frankenphp \
     --host=0.0.0.0 \
     --port="${PORT:-80}" \
