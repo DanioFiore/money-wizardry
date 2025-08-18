@@ -4,13 +4,16 @@ set -e
 echo "Starting Money Wizardry (Cloud Run optimized)..."
 
 # Set environment variables for faster startup
-export DB_TIMEOUT=5
-export DB_CONNECT_TIMEOUT=10
+export DB_TIMEOUT=2
+export DB_CONNECT_TIMEOUT=3
 export CACHE_DRIVER=array
 export SESSION_DRIVER=cookie
 export QUEUE_CONNECTION=sync
 export BROADCAST_DRIVER=log
 export LOG_LEVEL=error
+
+# Force skip database for initial health check
+export SKIP_DATABASE_HEALTH_CHECK=true
 
 # Ensure proper permissions for Laravel directories
 echo "Setting up permissions..."
@@ -29,6 +32,14 @@ fi
 
 # Start Laravel Octane with FrankenPHP immediately
 echo "Starting Octane with minimal configuration..."
+
+# Pre-warm the application in background while starting the server
+(
+    sleep 2
+    echo "Pre-warming application..."
+    curl -s http://localhost:${PORT:-80}/health > /dev/null 2>&1 || true
+) &
+
 exec php artisan octane:frankenphp \
     --host=0.0.0.0 \
     --port="${PORT:-80}" \

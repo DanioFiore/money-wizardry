@@ -231,10 +231,13 @@ ENV OCTANE_WORKERS=auto \
     FRANKENPHP_NUM_THREADS=auto \
     PHP_MEMORY_LIMIT=512M \
     PHP_MAX_EXECUTION_TIME=30 \
-    PORT=80
+    PORT=80 \
+    SKIP_DATABASE_HEALTH_CHECK=false \
+    DB_TIMEOUT=2 \
+    DB_CONNECT_TIMEOUT=3
 
-# Health check configuration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# Health check configuration (più permissivo per Cloud Run)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=2 \
     CMD ["/app/health-check.sh"]
 
 # Set the default command to start Laravel Octane (fast version for Cloud Run)
