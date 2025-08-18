@@ -1,30 +1,37 @@
 #!/bin/bash
 set -e
 
-echo "Starting Money Wizardry (Cloud Run ultra-fast)..."
+echo "Starting Money Wizardry (Cloud Run optimized)..."
 
-# Ultra-fast startup configuration - skip everything non-essential
-export DB_CONNECTION=${DB_CONNECTION:-mysql}
-export DB_TIMEOUT=3
-export DB_CONNECT_TIMEOUT=5
+# Set environment variables for faster startup
+export DB_TIMEOUT=5
+export DB_CONNECT_TIMEOUT=10
 export CACHE_DRIVER=array
 export SESSION_DRIVER=cookie
 export QUEUE_CONNECTION=sync
 export BROADCAST_DRIVER=log
-export LOG_LEVEL=warning
-export SKIP_MIGRATIONS=true
-export SKIP_OPTIMIZATIONS=true
+export LOG_LEVEL=error
 
-# Only set essential permissions
-echo "Quick permission setup..."
-mkdir -p /app/storage/logs /app/bootstrap/cache 2>/dev/null || true
-chmod 777 /app/storage/logs /app/bootstrap/cache 2>/dev/null || true
+# Ensure proper permissions for Laravel directories
+echo "Setting up permissions..."
+mkdir -p /app/storage/logs /app/storage/framework/cache /app/storage/framework/sessions /app/storage/framework/views
+chmod -R 775 /app/storage /app/bootstrap/cache 2>/dev/null || true
+chown -R mw:mw /app/storage /app/bootstrap/cache 2>/dev/null || true
 
-# Start Laravel Octane immediately with minimal workers
-echo "Starting Octane immediately..."
+# Skip slow operations for Cloud Run
+echo "Skipping database checks and optimizations for faster startup..."
+
+# Check if we should skip database entirely (for testing)
+if [ "${SKIP_DATABASE:-false}" = "true" ]; then
+    echo "Database connections disabled for testing..."
+    export DB_CONNECTION=array
+fi
+
+# Start Laravel Octane with FrankenPHP immediately
+echo "Starting Octane with minimal configuration..."
 exec php artisan octane:frankenphp \
     --host=0.0.0.0 \
     --port="${PORT:-80}" \
-    --workers=1 \
-    --max-requests=100 \
+    --workers="${OCTANE_WORKERS:-1}" \
+    --max-requests="${OCTANE_MAX_REQUESTS:-500}" \
     --no-interaction
