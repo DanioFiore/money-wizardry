@@ -13,15 +13,12 @@ FROM dunglas/frankenphp:php8.3 AS builder
 # - git: for composer dependencies from git repos
 # - unzip: for composer package extraction
 # - nodejs & npm: for asset compilation
-# - python3 & build-essential: for native modules compilation
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     curl \
     nodejs \
     npm \
-    python3 \
-    build-essential \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -63,7 +60,8 @@ RUN composer install \
     --no-scripts \
     --prefer-dist \
     --no-progress \
-    --no-interaction
+    --no-interaction \
+    --classmap-authoritative
 
 # Copy package.json files for Node.js dependencies
 COPY package*.json ./
@@ -102,14 +100,12 @@ RUN chown -R www-data:www-data /app \
     && chmod -R 775 /app/storage \
     && chmod -R 775 /app/bootstrap/cache
 
-# Build and optimize assets
-# Laravel Vite compilation for production
-# Add node_modules/.bin to PATH and run npm build
+# Build assets and optimize Laravel for Cloud Run
 ENV PATH="/app/node_modules/.bin:$PATH"
 RUN npm run build
 
 # Generate optimized autoloader
-RUN composer dump-autoload --optimize
+RUN composer dump-autoload --optimize --classmap-authoritative
 
 # -----------------------------------------------------------------------------
 # STAGE 2: PRODUCTION STAGE
@@ -122,12 +118,11 @@ LABEL maintainer="daniofioredev@gmail.com" \
         version="1.0" \
         description="Money Wizardry Production Image"
 
-# Install only essential runtime dependencies
-# Minimizing attack surface by installing only what's needed
+# Install only essential runtime dependencies for Cloud Run
+# Minimizing attack surface and image size for faster cold starts
 RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
-    default-mysql-client \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && apt-get autoremove -y
@@ -199,13 +194,11 @@ COPY --chown=mw:mw infrastructure/docker/octane.php /app/config/octane.php
 # Set up FrankenPHP Caddyfile for Laravel Octane
 COPY --chown=mw:mw infrastructure/docker/Caddyfile /etc/caddy/Caddyfile
 
-# Create startup script for Laravel Octane
-COPY --chown=mw:mw infrastructure/docker/start-octane.sh /app/start-octane.sh
-
+# Copy Cloud Run optimized startup script
 COPY --chown=mw:mw infrastructure/docker/start-octane-fast.sh /app/start-octane-fast.sh
 
-# Make startup scripts executable
-RUN chmod +x /app/start-octane.sh /app/start-octane-fast.sh
+# Make startup script executable
+RUN chmod +x /app/start-octane-fast.sh
 
 # Set proper file ownership and permissions
 RUN chown -R mw:mw /app \
@@ -221,20 +214,23 @@ RUN chmod +x /app/health-check.sh
 # Switch to non-root user for security
 USER mw
 
-# Expose port 80 (FrankenPHP default, Cloud Run uses $PORT)
-EXPOSE 80
+# Expose port 8080 (Cloud Run standard)
+EXPOSE 8080
 
-# Environment variables with sensible defaults
-ENV OCTANE_WORKERS=auto \
-    OCTANE_MAX_REQUESTS=1000 \
+# Environment variables optimized for Cloud Run
+ENV OCTANE_WORKERS=1 \
+    OCTANE_MAX_REQUESTS=500 \
     OCTANE_GC_ENABLED=true \
-    FRANKENPHP_NUM_THREADS=auto \
+    FRANKENPHP_NUM_THREADS=1 \
     PHP_MEMORY_LIMIT=512M \
     PHP_MAX_EXECUTION_TIME=30 \
-    PORT=80 \
-    SKIP_DATABASE_HEALTH_CHECK=false \
+    PORT=8080 \
+    SKIP_DATABASE_HEALTH_CHECK=true \
+    CLOUD_RUN_SERVICE=true \
     DB_TIMEOUT=2 \
-    DB_CONNECT_TIMEOUT=3
+    DB_CONNECT_TIMEOUT=3 \
+    SKIP_MIGRATIONS=true \
+    SKIP_OPTIMIZATIONS=false
 
 # Health check configuration (più permissivo per Cloud Run)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=2 \
@@ -244,23 +240,18 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=2 \
 CMD ["/app/start-octane-fast.sh"]
 
 # =============================================================================
-# BUILD INSTRUCTIONS:
+# BUILD INSTRUCTIONS - CLOUD RUN OPTIMIZED:
 # 
-# Build: docker build -t laravel-octane-app .
+# Build: docker build -t laravel-octane-cloudrun .
 # 
-# Cloud Run (fast startup):
-# Default: Uses start-octane-fast.sh automatically
+# Cloud Run deployment:
+# gcloud run deploy --image=laravel-octane-cloudrun --port=8080
 # 
-# Kubernetes (full features):
-# docker run --entrypoint /app/start-octane.sh laravel-octane-app
-# 
-# Environment variables to configure:
+# Environment variables for Cloud Run:
 # - DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-# - REDIS_HOST, REDIS_PASSWORD
-# - APP_KEY, APP_ENV, APP_DEBUG
-# - OCTANE_WORKERS, OCTANE_MAX_REQUESTS
-# - FRANKENPHP_NUM_THREADS
-# - SKIP_MIGRATIONS=true (for Cloud Run)
-# - SKIP_OPTIMIZATIONS=true (for fast startup)
+# - APP_KEY, APP_ENV=production, APP_DEBUG=false
+# - SKIP_MIGRATIONS=true (migrations should run separately)
+# - SKIP_DATABASE_HEALTH_CHECK=true (for faster startup)
+# - Memory: 512Mi, CPU: 1, Timeout: 300s
 # =============================================================================
 

@@ -68,52 +68,153 @@
 #     }
 # }
 {
-	# Global FrankenPHP configuration
+	# Global FrankenPHP configuration optimized for Cloud Run
 	frankenphp {
 		worker /app/public/index.php
-		num_threads {$FRANKENPHP_NUM_THREADS:auto}
+		# Optimized for Cloud Run: fewer threads for faster startup
+		num_threads {$FRANKENPHP_NUM_THREADS:1}
 	}
 	
-	# Security headers
+	# Cloud Run optimized global settings
+	servers {
+		# Reduce timeouts for Cloud Run environment
+		read_timeout 30s
+		write_timeout 30s
+		idle_timeout 120s
+		max_header_size 8KB
+	}
+	
+	# Security headers optimized for Cloud Run
 	header {
-		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		# Reduced HSTS for Cloud Run (shorter max-age)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+		# Simplified CSP for better performance
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+		# Cloud Run specific headers
+		X-Cloud-Service "money-wizardry"
 		-Server
 		-X-Powered-By
 	}
 }
 
-{$SERVER_NAME:localhost} {
-	root * /app/public
-	encode gzip
+{$SERVER_NAME:*} {
+	# Cloud Run uses dynamic port binding
+	bind 0.0.0.0:{$PORT:80}
 	
+	root * /app/public
+	
+	# Optimized compression for Cloud Run
+	encode {
+		gzip 6  # Balanced compression level
+		minimum_length 1024  # Don't compress small files
+	}
+	
+	# Security: Hide sensitive files (optimized matchers)
 	@forbidden {
 		path /.env*
 		path /.git/*
 		path /config/*
-		path /storage/*
+		path /storage/logs/*
+		path /storage/framework/*
 		path /vendor/*
 		path /*.md
 		path /composer.*
 		path /package.*
 		path /artisan
+		path /phpunit.xml
 	}
 	respond @forbidden 404
 
+	# Static files optimization for Cloud Run
 	@static {
 		file
-		path *.css *.js *.ico *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2 *.ttf *.eot
+		path *.css *.js *.ico *.png *.jpg *.jpeg *.gif *.svg *.woff *.woff2 *.ttf *.eot *.pdf *.zip
 	}
 	header @static {
-		Cache-Control "public, max-age=31536000, immutable"
+		# Aggressive caching for static assets in Cloud Run
+		Cache-Control "public, max-age=2592000, immutable"  # 30 days
+		Vary "Accept-Encoding"
+		# Cloud Run CDN optimization
+		X-Cloud-Trace-Context "{http.request.header.X-Cloud-Trace-Context}"
 	}
 	
+	# API routes optimization
+	@api {
+		path /api/*
+	}
+	header @api {
+		# No caching for API responses
+		Cache-Control "no-cache, no-store, must-revalidate"
+		Pragma "no-cache"
+		Expires "0"
+	}
+	
+	# Laravel routing with Cloud Run optimizations
 	try_files {path} {path}/ /index.php?{query}
 	
+	# Health check endpoint optimized for Cloud Run probes
 	handle /health {
-		respond "OK" 200
+		respond "OK" 200 {
+			# Fast health check response
+			header Cache-Control "no-cache"
+			header Content-Type "text/plain"
+		}
+	}
+	
+	# Readiness probe endpoint
+	handle /ready {
+		respond "READY" 200 {
+			header Cache-Control "no-cache"
+			header Content-Type "text/plain"
+		}
+	}
+	
+	# Root endpoint optimization
+	handle / {
+		header Cache-Control "no-cache, no-store, must-revalidate"
+	}
+	
+	# Cloud Run specific optimizations
+	# Handle preflight OPTIONS requests efficiently
+	@options {
+		method OPTIONS
+	}
+	header @options {
+		Access-Control-Allow-Origin "*"
+		Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type, Authorization"
+		Access-Control-Max-Age "86400"
+	}
+	respond @options 204
+	
+	# Error handling optimized for Cloud Run
+	handle_errors {
+		@5xx expression {http.error.status_code} >= 500
+		respond @5xx "Service temporarily unavailable" 503 {
+			header Content-Type "text/plain"
+			header Retry-After "30"
+		}
+		
+		@4xx expression {http.error.status_code} >= 400
+		respond @4xx "Resource not found" 404 {
+			header Content-Type "text/plain"
+		}
+	}
+	
+	# Request size limits for Cloud Run
+	request_body {
+		max_size 32MB
+	}
+	
+	# Logging optimization for Cloud Run (structured logging)
+	log {
+		output stdout
+		format json {
+			time_format "2006-01-02T15:04:05.000Z07:00"
+		}
+		level ERROR  # Reduced logging for performance
 	}
 }
